@@ -100,10 +100,10 @@ if __name__ == '__main__':
         train_json_data += json.load(f)
 
     # 2. validate data
-    with open("data/r2r_val_unseen.json", 'r') as f:
+    with open("data/r2r_val_seen.json", 'r') as f:
         val_json_data = json.load(f)
 
-    with open("data/r2r_val_seen.json", 'r') as f:
+    with open("data/r2r_val_unseen.json", 'r') as f:
         val_json_data += json.load(f)
 
     LOGGER.info(f"Finish loading the json data.")
@@ -364,7 +364,7 @@ if __name__ == '__main__':
                 print_progress(index, len(train_nap_dataloader.sampler), prefix='Progress:', suffix='Complete. %s' % loss_str)
 
             # log with wandb
-            if args.local_rank == 0 and index >= args.batchSize:
+            if args.local_rank == 0 and index > args.batchSize:
                 if 'mlm' in args.proxy:
                     wandb.log({"mlm_loss": mlm_loss.item()})
                 if 'tom' in args.proxy:
@@ -383,7 +383,7 @@ if __name__ == '__main__':
                 if 'mlm' in args.proxy:
                     mlm_val = validate(model, 'mlm', val_mlm_dataloader)
                     wandb.log({"mlm_acc": mlm_val['acc']})
-                    now_model['score'] += mlm_val['acc'] * 0.4
+                    now_model['score'] += mlm_val['acc'] * 0.5
                     now_model['mlm_acc'] = mlm_val['acc']
 
                 if 'nap' in args.proxy:

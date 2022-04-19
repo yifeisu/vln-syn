@@ -2,24 +2,15 @@ import time
 import random
 import csv
 
-csv.field_size_limit(2500000)
 import base64
 import logging
 import numpy as np
 
 import torch
 from torch.utils.data import Dataset
-
 from transformers import BertTokenizer
 
-import sys
-
-sys.path.append(r"E:/4-MyResearch_Task/0-vln/3-vln_space/pretrain_src/")
-from utils.logger import get_logger
-from utils.parameters import args
-
-logger = get_logger(__name__, True)
-#
+csv.field_size_limit(2500000)
 logger = logging.getLogger(__name__)
 
 
@@ -313,33 +304,37 @@ class ItmDataset(Dataset):
         super(ItmDataset, self).__init__()
 
         self.image_feat = features
-        self.data = dict()
-        for item in json_data:
-            scan = item["traj_scan"]
-            if self.data.get(scan) is None:
-                self.data[scan] = [(item["instr_ids"], item["path"])]
-            else:
-                self.data[scan].append((item["instr_ids"], item["path"]))
-        self.scans = list(self.data.keys())
+        self.data = json_data
         self.pad_token_id = 0
+
+        self.meta_data = dict()
+        for item in self.data:
+            scan = item["traj_scan"]
+            if self.meta_data.get(scan) is None:
+                self.meta_data[scan] = [item["path"]]
+            else:
+                self.meta_data[scan].append(item["path"])
+        self.scans = list(self.meta_data.keys())
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
-        scan = self.scans[index]
-        instr_trajs = self.data[scan]  # instr_trajs: a list of tuple (instr, traj)
+        item = self.data[index]
+
+        scan = item["traj_scan"]
+        trajs = self.meta_data[scan].copy()  # instr_trajs: a list of tuple [(instr, traj)...]
 
         prob = random.random()
         if prob < 0.5:
-            pair_id = random.randint(0, len(instr_trajs))
-            instr_raw, traj_raw = instr_trajs[pair_id]
-            itm_label = 0
-        else:
-            instr_id, traj_id = random.sample(range(len(instr_trajs)), k=2)
-            instr_raw = instr_trajs[instr_id][0]
-            traj_raw = instr_trajs[traj_id][1]
+            instr_raw = item["instr_ids"]
+            trajs.remove(item["path"])
+            traj_id = random.choice(range(len(trajs)))
+            traj_raw = trajs[traj_id]
             itm_label = 1
+        else:
+            instr_raw, traj_raw = item["instr_ids"], item["path"]
+            itm_label = 0
 
         # 1. mask the instruction
         instr_ids = torch.LongTensor(instr_raw)

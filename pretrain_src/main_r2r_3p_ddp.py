@@ -1,5 +1,6 @@
+from utils.parameters import args
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1,2,3'
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 import json
 import random
 import warnings
@@ -18,7 +19,6 @@ from model.pretrain_model import VlnModelPreTraining
 from optim.misc import build_optimizer
 from optim.sched import get_lr_sched
 from utils.logger import LOGGER, print_progress, add_log_to_file
-from utils.parameters import args
 from utils.validate import validate
 
 warnings.filterwarnings("ignore")

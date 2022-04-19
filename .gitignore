@@ -14,3 +14,8 @@ pretrain_src/utils/__pycache__/
 pretrain_src/model/__pycache__/pretrain_model.cpython-39.pyc
 *.pyc
 *.pyc
+*.pyc
+pretrain_src/utils/__pycache__/validate.cpython-39.pyc
+pretrain_src/utils/__pycache__/parameters.cpython-39.pyc
+pretrain_src/utils/__pycache__/logger.cpython-39.pyc
+pretrain_src/model/__pycache__/pretrain_model.cpython-39.pyc

@@ -1,0 +1,165 @@
+import logging
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from transformers import BertPreTrainedModel
+
+from .vilmodel_bert_vit_lx import BertLayerNorm, BertOnlyMLMHead
+from .vilmodel_bert_vit_lx import VlnModel
+
+import sys
+
+sys.path.append('..')
+#from utils.logger import get_logger
+
+#logger = get_logger(__name__, True)
+logger = logging.getLogger(__name__)
+
+
+class NextCandidatePrediction(nn.Module):
+    """
+    implement on the candidate embedding, choose the next candidate viewpoint
+    """
+
+    def __init__(self, hidden_size, dropout_rate):
+        super(NextCandidatePrediction, self).__init__()
+        self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size, eps=1e-12),
+                                 nn.Dropout(dropout_rate),
+                                 nn.Linear(hidden_size, 1))
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class TrajOrderPrediction(nn.Module):
+    """
+    implement on the candidate embedding, choose the next candidate viewpoint
+    """
+
+    def __init__(self, hidden_size, dropout_rate):
+        super(TrajOrderPrediction, self).__init__()
+        self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size, eps=1e-12),
+                                 nn.Dropout(dropout_rate),
+                                 nn.Linear(hidden_size, 4))
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class NextActionPrediction(nn.Module):
+    """
+    implement on the [CLS] embedding, choose the next action
+    env_actions = {'left': (0, -1, 0),  # left
+                   'right': (0, 1, 0),  # right
+                   'up': (0, 0, 1),  # up
+                   'down': (0, 0, -1),  # down
+                   'forward': (1, 0, 0),  # forward
+                   '<end>': (0, 0, 0),  # <end>
+                   '<start>': (0, 0, 0),  # <start>
+                   '<ignore>': (0, 0, 0)}  # <ignore>
+    """
+
+    def __init__(self, hidden_size, dropout_rate):
+        super(NextActionPrediction, self).__init__()
+        self.net = nn.Sequential(BertLayerNorm(hidden_size, eps=1e-12),
+                                 nn.Dropout(dropout_rate),
+                                 nn.Linear(hidden_size, 8))
+
+    def forward(self, x):
+        return self.net(x)
+
+
+def _compute_masked_hidden(hidden, mask):
+    """
+    get only the masked region (don't compute unnecessary hiddens)
+    """
+    mask = mask.unsqueeze(-1).expand_as(hidden)
+    hidden_masked = hidden[mask].contiguous().view(-1, hidden.size(-1))
+    return hidden_masked
+
+
+class VlnModelPreTraining(BertPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.config = config
+        if 'mlm' in config.pretrain_tasks:
+            self.mlm_head = BertOnlyMLMHead(self.config)
+        if 'nap' in config.pretrain_tasks:
+            self.next_action = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+        if 'tom' in config.pretrain_tasks:
+            self.tom_head = TrajOrderPrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+
+        # initial the weights excpet for the lxmert vlnmodel
+        # self.init_weights()
+        self.apply(self._init_weights)
+        logger.info("Finish initializing the proxy heads randomly!")
+        # use the pretrained lxmert weights to initial the vlnmodel
+        self.bert = VlnModel.from_pretrained('unc-nlp/lxmert-base-uncased', config=config)
+        # self.bert = VlnModel(config=config)
+        logger.info("Finish initializing the lxmert vlnmodel with the pretrained weights!")
+
+        # tie the mlm decoder with the bert embedding weights
+        self.tie_weights()
+
+    def tie_weights(self):
+        if 'mlm' in self.config.pretrain_tasks:
+            self._tie_or_clone_weights(self.mlm_head.predictions.decoder,
+                                       self.bert.embeddings.word_embeddings)
+
+    def forward(self,
+                task,
+                instr_ids=None,
+                instr_labels=None,
+                instr_mask=None,
+                image_feat=None,
+                image_mask=None,
+                teacher_action=None):
+
+        if 'mlm' == task:
+            _, lang_output, _ = self.bert(input_ids=instr_ids,
+                                          attention_mask=instr_mask,
+                                          visual_feats=image_feat,
+                                          visual_attention_mask=image_mask)
+
+            # only compute masked tokens for better efficiency
+            masked_output = _compute_masked_hidden(lang_output, instr_labels != -1)
+            prediction_scores = self.mlm_head(masked_output)
+
+            return prediction_scores
+
+        elif 'nap' == task:
+
+            _, _, visual_output = self.bert(input_ids=instr_ids,
+                                            attention_mask=instr_mask,
+                                            visual_feats=image_feat,
+                                            visual_attention_mask=image_mask)
+
+            # combine text and visual to predict next action
+            prediction_scores = self.next_action(visual_output).squeeze(-1)
+
+            return prediction_scores
+
+        elif 'tom' == task:
+
+            pad_traj_views, pad_traj_index = image_feat
+
+            _, _, visual_output = self.bert(input_ids=instr_ids,
+                                            attention_mask=instr_mask,
+                                            visual_feats=pad_traj_views,
+                                            visual_attention_mask=image_mask)
+
+            # only compute masked tokens for better efficiency
+            # masked_output = _compute_masked_hidden(visual_output, pad_traj_index)
+            masked_output = visual_output[pad_traj_index].contiguous().view(visual_output.shape[0], -1, visual_output.shape[-1])
+            prediction_scores = self.tom_head(masked_output)
+
+            return prediction_scores
+
+        else:
+            raise ValueError('invalid task')

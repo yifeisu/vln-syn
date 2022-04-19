@@ -1,0 +1,16 @@
+
+.idea/
+
+finetune_src/image_features/
+finetune_src/r2r_data/
+finetune_src/snap/
+pretrain_src/data/
+pretrain_src/snap/
+pretrain_src/utils/__pycache__/
+pretrain_src/test_dataset.py
+test_dataset.py
+pretrain_src/model/__pycache__/
+pretrain_src/utils/__pycache__/
+pretrain_src/model/__pycache__/pretrain_model.cpython-39.pyc
+*.pyc
+*.pyc

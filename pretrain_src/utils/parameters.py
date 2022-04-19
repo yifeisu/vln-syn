@@ -39,6 +39,11 @@ class Param:
                                  type=int,
                                  help='node rank for distributed training')
 
+        self.parser.add_argument('--gpu_id',
+                                 default=0,
+                                 type=str,
+                                 help='gpu to used')
+
         self.parser.add_argument('--seed',
                                  default=0,
                                  type=int)        

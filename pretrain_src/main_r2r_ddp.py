@@ -226,7 +226,7 @@ if __name__ == '__main__':
             # -------------------------------------------------------------------------------------- #
             # set wandb project
             # -------------------------------------------------------------------------------------- #
-            if args.local_rank == 0 and index == args.batchSize:
+            if args.local_rank == 0 and index == 1:
                 wandb.init(config=args, project="vln-project-pretrain", entity="susanping")
 
                 wandb.config.update({
@@ -236,7 +236,7 @@ if __name__ == '__main__':
                     "xmodal_model": 'lxmert'
                 })
 
-            index += args.batchSize
+            index += 1
             # 1.train mlm proxy task
             if 'mlm' in args.proxy:
                 try:
@@ -349,7 +349,7 @@ if __name__ == '__main__':
                 optimizer.zero_grad()
 
             # 4. print the training progress
-            if index < 1500:
+            if index < 15:
                 loss_str = ''
                 if 'mlm' in args.proxy:
                     loss_str += 'mlm loss %.4f,' % mlm_loss.item()
@@ -361,49 +361,48 @@ if __name__ == '__main__':
                     loss_str += 'itm loss %.4f,' % itm_loss.item()
 
                 loss_str += 'lr is  %.4f, device id: %s.' % (lr_this_step, args.local_rank)
-                print_progress(index, len(train_nap_dataloader.sampler), prefix='Progress:', suffix='Complete. %s' % loss_str)
+                print_progress(index, len(train_nap_dataloader.sampler)//args.batchSize, prefix='Progress:', suffix='Complete. %s' % loss_str)
 
             # log with wandb
-            if args.local_rank == 0 and index > args.batchSize:
+            if args.local_rank == 0 and index > 1:
                 if 'mlm' in args.proxy:
-                    wandb.log({"mlm_loss": mlm_loss.item()})
+                    wandb.log({"mlm_loss": mlm_loss.item()}, step=index)
                 if 'tom' in args.proxy:
-                    wandb.log({"tom_loss": tom_loss.item()})
+                    wandb.log({"tom_loss": tom_loss.item()}, step=index)
                 if 'nap' in args.proxy:
-                    wandb.log({"nap_loss": nap_loss.item()})
+                    wandb.log({"nap_loss": nap_loss.item()}, step=index)
                 if 'itm' in args.proxy:
-                    wandb.log({"itm_loss": itm_loss.item()})
+                    wandb.log({"itm_loss": itm_loss.item()}, step=index)
 
                 wandb.log({"lr": lr_this_step})
-                wandb.log({"optim_step": optim_step})
 
             # 5. validate at each log iter
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4
             if args.local_rank == 0:
-                if (optim_step % val_iter) == 0:
+                if (index % val_iter) == 0:
                     print("validate for best model", args.proxy)
                     now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
                     if 'mlm' in args.proxy:
                         mlm_val = validate(model, 'mlm', val_mlm_dataloader)
-                        wandb.log({"mlm_acc": mlm_val['acc']})
+                        wandb.log({"mlm_acc": mlm_val['acc']}, step=index)
                         now_model['score'] += mlm_val['acc'] * 0.5
                         now_model['mlm_acc'] = mlm_val['acc']
 
                     if 'nap' in args.proxy:
                         nap_val = validate(model, 'nap', val_nap_dataloader)
-                        wandb.log({"nap_acc": nap_val['acc']})
+                        wandb.log({"nap_acc": nap_val['acc']}, step=index)
                         now_model['score'] += nap_val['acc'] * 0.5
                         now_model['nap_acc'] = nap_val['acc']
 
                     if 'tom' in args.proxy:
                         tom_val = validate(model, 'tom', val_tom_dataloader)
-                        wandb.log({"tom_acc": tom_val['acc']})
+                        wandb.log({"tom_acc": tom_val['acc']}, step=index)
                         now_model['score'] += tom_val['acc'] * 0.3
                         now_model['tom_acc'] = tom_val['acc']
 
                     if 'itm' in args.proxy:
                         itm_val = validate(model, 'itm', val_itm_dataloader)
-                        wandb.log({"itm_acc": itm_val['acc']})
+                        wandb.log({"itm_acc": itm_val['acc']}, step=index)
                         now_model['score'] += itm_val['acc'] * 0.4
                         now_model['itm_acc'] = itm_val['acc']
 

@@ -375,6 +375,7 @@ if __name__ == '__main__':
                     wandb.log({"itm_loss": itm_loss.item()})
 
                 wandb.log({"lr": lr_this_step})
+                wandb.log({"optim_step": optim_step})
 
             # 5. validate at each log iter
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4

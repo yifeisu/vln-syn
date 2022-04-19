@@ -1,6 +1,7 @@
 import time
 import random
 import csv
+
 csv.field_size_limit(2500000)
 import base64
 import logging
@@ -301,3 +302,75 @@ def tom_collate(inputs):
     pad_traj_index = pad_traj_index.bool()
 
     return instr_ids, instr_mask, pad_traj_views, pad_traj_index, traj_mask, traj_labels
+
+
+class ItmDataset(Dataset):
+    def __init__(self, json_data, features):
+        """
+        json_path:
+        features:
+        """
+        super(ItmDataset, self).__init__()
+
+        self.image_feat = features
+        self.data = dict()
+        for item in json_data:
+            scan = item["traj_scan"]
+            if self.data.get(scan) is None:
+                self.data[scan] = [(item["instr_ids"], item["path"])]
+            else:
+                self.data[scan].append((item["instr_ids"], item["path"]))
+        self.scans = list(self.data.keys())
+        self.pad_token_id = 0
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        scan = self.scans[index]
+        instr_trajs = self.data[scan]  # instr_trajs: a list of tuple (instr, traj)
+
+        prob = random.random()
+        if prob < 0.5:
+            pair_id = random.randint(0, len(instr_trajs))
+            instr_raw, traj_raw = instr_trajs[pair_id]
+            itm_label = 0
+        else:
+            instr_id, traj_id = random.sample(range(len(instr_trajs)), k=2)
+            instr_raw = instr_trajs[instr_id][0]
+            traj_raw = instr_trajs[traj_id][1]
+            itm_label = 1
+
+        # 1. mask the instruction
+        instr_ids = torch.LongTensor(instr_raw)
+        instr_mask = (instr_ids != self.pad_token_id).long()
+
+        # 2. collect the trajectory views
+        traj_views = list()
+        for viewpoint in traj_raw:
+            _long_id = '%s_%s' % (viewpoint[0], viewpoint[1])
+            image_feat = self.image_feat[_long_id][viewpoint[2]]
+            angle_feat = angle_feature(0, 0)
+            traj_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+        traj_views = torch.from_numpy(np.vstack(traj_views))  # traj_len, feature_dim
+
+        itm_label = torch.tensor([itm_label])
+
+        return instr_ids, instr_mask, traj_views, itm_label
+
+
+def itm_collate(inputs):
+    instr_ids, instr_mask, traj_views, itm_label = list(zip(*inputs))
+    instr_ids, instr_mask, traj_labels = torch.vstack(instr_ids), torch.vstack(instr_mask), torch.hstack(itm_label)
+
+    # prepare the traj_views and mask, to same length
+    traj_length = [traj_view.shape[0] for traj_view in traj_views]
+    max_len = max(traj_length)
+    pad_traj_views = torch.zeros([len(traj_views), max_len, traj_views[0].shape[1]], dtype=torch.float32)
+    for i in range(len(traj_views)):
+        for j in range(traj_length[i]):
+            pad_traj_views[i, j, :] = traj_views[i][j]
+
+    traj_mask = (length2mask(traj_length) == 0).long()
+
+    return instr_ids, instr_mask, pad_traj_views, traj_mask, traj_labels

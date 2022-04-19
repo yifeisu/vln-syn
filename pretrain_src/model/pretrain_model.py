@@ -1,19 +1,16 @@
 import logging
+import sys
 
-import torch
+from random import random as rd
 import torch.nn as nn
-import torch.nn.functional as F
 from transformers import BertPreTrainedModel
 
 from .vilmodel_bert_vit_lx import BertLayerNorm, BertOnlyMLMHead
 from .vilmodel_bert_vit_lx import VlnModel
 
-import sys
-
 sys.path.append('..')
-#from utils.logger import get_logger
+from utils.parameters import args
 
-#logger = get_logger(__name__, True)
 logger = logging.getLogger(__name__)
 
 
@@ -51,24 +48,16 @@ class TrajOrderPrediction(nn.Module):
         return self.net(x)
 
 
-class NextActionPrediction(nn.Module):
+class InstruTrajPrediction(nn.Module):
     """
-    implement on the [CLS] embedding, choose the next action
-    env_actions = {'left': (0, -1, 0),  # left
-                   'right': (0, 1, 0),  # right
-                   'up': (0, 0, 1),  # up
-                   'down': (0, 0, -1),  # down
-                   'forward': (1, 0, 0),  # forward
-                   '<end>': (0, 0, 0),  # <end>
-                   '<start>': (0, 0, 0),  # <start>
-                   '<ignore>': (0, 0, 0)}  # <ignore>
+    implement on the [CLS] embedding, predict whether the instru and traj is matched pair
     """
 
     def __init__(self, hidden_size, dropout_rate):
-        super(NextActionPrediction, self).__init__()
+        super(InstruTrajPrediction, self).__init__()
         self.net = nn.Sequential(BertLayerNorm(hidden_size, eps=1e-12),
                                  nn.Dropout(dropout_rate),
-                                 nn.Linear(hidden_size, 8))
+                                 nn.Linear(hidden_size, 2))
 
     def forward(self, x):
         return self.net(x)
@@ -94,6 +83,11 @@ class VlnModelPreTraining(BertPreTrainedModel):
             self.next_action = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
         if 'tom' in config.pretrain_tasks:
             self.tom_head = TrajOrderPrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+        if 'itm' in config.pretrain_tasks:
+            self.itm_head = InstruTrajPrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+
+        # enviroument dropout
+        self.drop_env = nn.Dropout(p=args.featdropout)
 
         # initial the weights excpet for the lxmert vlnmodel
         # self.init_weights()
@@ -120,6 +114,9 @@ class VlnModelPreTraining(BertPreTrainedModel):
                 image_feat=None,
                 image_mask=None,
                 teacher_action=None):
+        probs = rd()
+        if probs < 0.6:
+            image_feat[..., :-args.angle_feat_size] = self.drop_env(image_feat[..., :-args.angle_feat_size])
 
         if 'mlm' == task:
             _, lang_output, _ = self.bert(input_ids=instr_ids,
@@ -134,7 +131,6 @@ class VlnModelPreTraining(BertPreTrainedModel):
             return prediction_scores
 
         elif 'nap' == task:
-
             _, _, visual_output = self.bert(input_ids=instr_ids,
                                             attention_mask=instr_mask,
                                             visual_feats=image_feat,
@@ -146,7 +142,6 @@ class VlnModelPreTraining(BertPreTrainedModel):
             return prediction_scores
 
         elif 'tom' == task:
-
             pad_traj_views, pad_traj_index = image_feat
 
             _, _, visual_output = self.bert(input_ids=instr_ids,
@@ -158,6 +153,17 @@ class VlnModelPreTraining(BertPreTrainedModel):
             # masked_output = _compute_masked_hidden(visual_output, pad_traj_index)
             masked_output = visual_output[pad_traj_index].contiguous().view(visual_output.shape[0], -1, visual_output.shape[-1])
             prediction_scores = self.tom_head(masked_output)
+
+            return prediction_scores
+
+        elif 'itm' == task:
+            pool_output, _, _ = self.bert(input_ids=instr_ids,
+                                          attention_mask=instr_mask,
+                                          visual_feats=image_feat,
+                                          visual_attention_mask=image_mask)
+
+            # only compute masked tokens for better efficiency
+            prediction_scores = self.itm_head(pool_output)
 
             return prediction_scores
 

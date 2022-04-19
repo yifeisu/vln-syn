@@ -15,7 +15,7 @@ import torch.distributed as dist
 
 from transformers import LxmertConfig
 
-from data.r2r_dataset import read_img_features, MlmDataset, mlm_collate, NapDataset, nap_collate, TomDataset, tom_collate
+from data.r2r_dataset import read_img_features, MlmDataset, mlm_collate, NapDataset, nap_collate, TomDataset, tom_collate, ItmDataset, itm_collate
 from model.pretrain_model import VlnModelPreTraining
 from optim.misc import build_optimizer
 from optim.sched import get_lr_sched
@@ -140,6 +140,17 @@ if __name__ == '__main__':
                                       pin_memory=True,
                                       drop_last=True)
 
+    # 4.itm train dateset
+    train_itm_dataset = ItmDataset(train_json_data, image_feat)
+    train_itm_sampler = DistributedSampler(train_itm_dataset)
+    train_itm_dataloader = DataLoader(train_itm_dataset,
+                                      batch_size=args.batchSize,
+                                      num_workers=args.num_workers,
+                                      collate_fn=itm_collate,
+                                      sampler=train_itm_sampler,
+                                      pin_memory=True,
+                                      drop_last=True)
+
     # 1.mlm val dataset
     val_mlm_dataset = MlmDataset(val_json_data, image_feat)
     val_mlm_dataloader = DataLoader(val_mlm_dataset,
@@ -160,6 +171,13 @@ if __name__ == '__main__':
                                     collate_fn=tom_collate,
                                     drop_last=True)
 
+    # 4.itm val dateset
+    val_itm_dataset = ItmDataset(val_json_data, image_feat)
+    val_itm_dataloader = DataLoader(val_itm_dataset,
+                                    batch_size=args.batchSize,
+                                    collate_fn=itm_collate,
+                                    drop_last=True)
+
     LOGGER.info(f"Finish creating all dataset and dataloader, train on {len(train_nap_dataloader.sampler)} items, validate on {len(val_nap_dataset)} items")
 
     # ------------------------------------------- #
@@ -169,6 +187,7 @@ if __name__ == '__main__':
     mlm_loss_fun = torch.nn.CrossEntropyLoss()
     nap_loss_fun = torch.nn.CrossEntropyLoss()
     tom_loss_fun = torch.nn.CrossEntropyLoss()
+    itm_loss_fun = torch.nn.CrossEntropyLoss()
 
     optimizer = build_optimizer(model, args)
 
@@ -181,16 +200,19 @@ if __name__ == '__main__':
     best_model = {'score': 0.0,
                   'mlm_acc': 0.0,
                   'nap_acc': 0.0,
-                  'tom_acc': 0.0}
+                  'tom_acc': 0.0,
+                  'itm_acc': 0.0}
 
     for epoch in range(args.epoch):
         train_mlm_sampler.set_epoch(epoch)
         train_nap_sampler.set_epoch(epoch)
         train_tom_sampler.set_epoch(epoch)
+        train_itm_sampler.set_epoch(epoch)
         # obtain the dataloader iter
         train_mlm_iter = iter(train_mlm_dataloader)
         train_nap_iter = iter(train_nap_dataloader)
         train_tom_iter = iter(train_tom_dataloader)
+        train_itm_iter = iter(train_itm_dataloader)
 
         # ------------------------------------------- #
         # training process
@@ -233,7 +255,6 @@ if __name__ == '__main__':
 
                     mlm_loss = mlm_loss_fun(mlm_preds,
                                             instr_labels[instr_labels != -1])
-                    print(mlm_loss.shape)
                     mlm_loss.backward()
 
             except StopIteration as e:
@@ -259,13 +280,36 @@ if __name__ == '__main__':
                     tom_loss = tom_loss_fun(tom_pred,
                                             traj_labels)
                     tom_loss.backward()
-                    print(tom_loss.shape)
 
             except StopIteration as e:
                 print("Reload the train_tom_iter, until the train_nap_iter stops itering.")
                 train_tom_iter = iter(train_tom_dataloader)
 
-            # 3.train nap proxy task
+            # 3.train itm proxy task
+            try:
+                if 'itm' in args.proxy:
+                    data = next(train_itm_iter)
+                    with torch.no_grad():
+                        data = [item.cuda(non_blocking=True) for item in data]
+
+                    instr_ids, instr_mask, pad_traj_views, traj_mask, traj_labels = data
+
+                    itm_pred = model('itm',
+                                     instr_ids=instr_ids,
+                                     instr_mask=instr_mask,
+                                     image_feat=pad_traj_views,
+                                     image_mask=traj_mask,
+                                     teacher_action=traj_labels)
+
+                    itm_loss = itm_loss_fun(itm_pred,
+                                            traj_labels)
+                    itm_loss.backward()
+
+            except StopIteration as e:
+                print("Reload the train_itm_iter, until the train_nap_iter stops itering.")
+                train_itm_iter = iter(train_itm_dataloader)
+
+            # 4.train nap proxy task
             try:
                 if 'nap' in args.proxy:
                     data = next(train_nap_iter)
@@ -283,7 +327,6 @@ if __name__ == '__main__':
 
                     nap_loss = nap_loss_fun(nap_preds, teacher_action)
                     nap_loss.backward()
-                    print(nap_loss.shape)
 
             except StopIteration as e:
                 print('\n')
@@ -306,11 +349,13 @@ if __name__ == '__main__':
             if index < 1300:
                 loss_str = ''
                 if 'mlm' in args.proxy:
-                    loss_str += 'mlm loss is %.4f,' % mlm_loss.item()
+                    loss_str += 'mlm loss %.4f,' % mlm_loss.item()
                 if 'tom' in args.proxy:
-                    loss_str += 'tom loss is %.4f,' % tom_loss.item()
+                    loss_str += 'tom loss %.4f,' % tom_loss.item()
                 if 'nap' in args.proxy:
-                    loss_str += 'nap loss is %.4f,' % nap_loss.item()
+                    loss_str += 'nap loss %.4f,' % nap_loss.item()
+                if 'itm' in args.proxy:
+                    loss_str += 'itm loss %.4f,' % itm_loss.item()
 
                 loss_str += 'lr is  %.4f, device id: %s.' % (lr_this_step, args.local_rank)
                 print_progress(index, len(train_nap_dataloader.sampler), prefix='Progress:', suffix='Complete. %s' % loss_str)
@@ -323,13 +368,15 @@ if __name__ == '__main__':
                     wandb.log({"tom_loss": tom_loss.item()})
                 if 'nap' in args.proxy:
                     wandb.log({"nap_loss": nap_loss.item()})
+                if 'itm' in args.proxy:
+                    wandb.log({"itm_loss": itm_loss.item()})
 
                 wandb.log({"lr": lr_this_step})
 
             # 5. validate at each log iter
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4
             if args.local_rank == 0 and (optim_step % val_iter) == 0:
-                now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0}
+                now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
                 if 'mlm' in args.proxy:
                     mlm_val = validate(model, 'mlm', val_mlm_dataloader)
                     wandb.log({"mlm_acc": mlm_val['acc']})
@@ -347,6 +394,12 @@ if __name__ == '__main__':
                     wandb.log({"tom_acc": tom_val['acc']})
                     now_model['score'] += tom_val['acc'] * 0.3
                     now_model['tom_acc'] = tom_val['acc']
+
+                if 'itm' in args.proxy:
+                    itm_val = validate(model, 'itm', val_itm_dataloader)
+                    wandb.log({"itm_acc": itm_val['acc']})
+                    now_model['score'] += itm_val['acc'] * 0.4
+                    now_model['itm_acc'] = itm_val['acc']
 
                 model.train()
 
@@ -372,6 +425,8 @@ if __name__ == '__main__':
                 validate(model, 'nap', val_nap_dataloader)
             if 'tom' in args.proxy:
                 validate(model, 'tom', val_tom_dataloader)
+            if 'itm' in args.proxy:
+                validate(model, 'itm', val_itm_dataloader)
             LOGGER.info(f"Finishs the {epoch} validate epoch!")
 
             # ------------------------------------------- #

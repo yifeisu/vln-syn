@@ -238,99 +238,102 @@ if __name__ == '__main__':
 
             index += args.batchSize
             # 1.train mlm proxy task
-            try:
-                if 'mlm' in args.proxy:
+            if 'mlm' in args.proxy:
+                try:
                     data = next(train_mlm_iter)
-                    with torch.no_grad():
-                        data = [item.cuda(non_blocking=True) for item in data]
+                except StopIteration as e:
+                    print("\nReload the train_mlm_iter, until the train_nap_iter stops itering.")
+                    train_mlm_iter = iter(train_mlm_dataloader)
+                    data = next(train_mlm_iter)
 
-                    instr_ids, instr_labels, instr_mask, pad_traj_views, traj_mask = data
+                with torch.no_grad():
+                    data = [item.cuda(non_blocking=True) for item in data]
 
-                    mlm_preds = model('mlm',
-                                      instr_ids=instr_ids,
-                                      instr_labels=instr_labels,
-                                      instr_mask=instr_mask,
-                                      image_feat=pad_traj_views,
-                                      image_mask=traj_mask)
+                instr_ids, instr_labels, instr_mask, pad_traj_views, traj_mask = data
 
-                    mlm_loss = mlm_loss_fun(mlm_preds,
-                                            instr_labels[instr_labels != -1])
-                    mlm_loss.backward()
+                mlm_preds = model('mlm',
+                                  instr_ids=instr_ids,
+                                  instr_labels=instr_labels,
+                                  instr_mask=instr_mask,
+                                  image_feat=pad_traj_views,
+                                  image_mask=traj_mask)
 
-            except StopIteration as e:
-                print("\nReload the train_mlm_iter, until the train_nap_iter stops itering.")
-                train_mlm_iter = iter(train_mlm_dataloader)
+                mlm_loss = mlm_loss_fun(mlm_preds,
+                                        instr_labels[instr_labels != -1])
+                mlm_loss.backward()
 
             # 2.train tom proxy task
-            try:
-                if 'tom' in args.proxy:
+            if 'tom' in args.proxy:
+                try:
                     data = next(train_tom_iter)
-                    with torch.no_grad():
-                        data = [item.cuda(non_blocking=True) for item in data]
+                except StopIteration as e:
+                    print("Reload the train_tom_iter, until the train_nap_iter stops itering.")
+                    train_tom_iter = iter(train_tom_dataloader)
+                    data = next(train_tom_iter)
 
-                    instr_ids, instr_mask, pad_traj_views, pad_traj_index, traj_mask, traj_labels = data
+                with torch.no_grad():
+                    data = [item.cuda(non_blocking=True) for item in data]
 
-                    tom_pred = model('tom',
-                                     instr_ids=instr_ids,
-                                     instr_mask=instr_mask,
-                                     image_feat=(pad_traj_views, pad_traj_index),
-                                     image_mask=traj_mask,
-                                     teacher_action=traj_labels)
+                instr_ids, instr_mask, pad_traj_views, pad_traj_index, traj_mask, traj_labels = data
 
-                    tom_loss = tom_loss_fun(tom_pred,
-                                            traj_labels)
-                    tom_loss.backward()
+                tom_pred = model('tom',
+                                 instr_ids=instr_ids,
+                                 instr_mask=instr_mask,
+                                 image_feat=(pad_traj_views, pad_traj_index),
+                                 image_mask=traj_mask,
+                                 teacher_action=traj_labels)
 
-            except StopIteration as e:
-                print("Reload the train_tom_iter, until the train_nap_iter stops itering.")
-                train_tom_iter = iter(train_tom_dataloader)
+                tom_loss = tom_loss_fun(tom_pred,
+                                        traj_labels)
+                tom_loss.backward()
 
             # 3.train itm proxy task
-            try:
-                if 'itm' in args.proxy:
+            if 'itm' in args.proxy:
+                try:
                     data = next(train_itm_iter)
-                    with torch.no_grad():
-                        data = [item.cuda(non_blocking=True) for item in data]
+                except StopIteration as e:
+                    print("Reload the train_itm_iter, until the train_nap_iter stops itering.")
+                    train_itm_iter = iter(train_itm_dataloader)
+                    data = next(train_itm_iter)
 
-                    instr_ids, instr_mask, pad_traj_views, traj_mask, traj_labels = data
+                with torch.no_grad():
+                    data = [item.cuda(non_blocking=True) for item in data]
 
-                    itm_pred = model('itm',
-                                     instr_ids=instr_ids,
-                                     instr_mask=instr_mask,
-                                     image_feat=pad_traj_views,
-                                     image_mask=traj_mask,
-                                     teacher_action=traj_labels)
+                instr_ids, instr_mask, pad_traj_views, traj_mask, traj_labels = data
 
-                    itm_loss = itm_loss_fun(itm_pred,
-                                            traj_labels)
-                    itm_loss.backward()
+                itm_pred = model('itm',
+                                 instr_ids=instr_ids,
+                                 instr_mask=instr_mask,
+                                 image_feat=pad_traj_views,
+                                 image_mask=traj_mask,
+                                 teacher_action=traj_labels)
 
-            except StopIteration as e:
-                print("Reload the train_itm_iter, until the train_nap_iter stops itering.")
-                train_itm_iter = iter(train_itm_dataloader)
+                itm_loss = itm_loss_fun(itm_pred,
+                                        traj_labels)
+                itm_loss.backward()
 
             # 4.train nap proxy task
-            try:
-                if 'nap' in args.proxy:
+            if 'nap' in args.proxy:
+                try:
                     data = next(train_nap_iter)
-                    with torch.no_grad():
-                        data = [item.cuda(non_blocking=True) for item in data]
+                except StopIteration as e:
+                    print('\n')
+                    break
 
-                    instr_ids, instr_mask, candidate_views, candidate_mask, teacher_action = data
+                with torch.no_grad():
+                    data = [item.cuda(non_blocking=True) for item in data]
 
-                    nap_preds = model('nap',
-                                      instr_ids=instr_ids,
-                                      instr_mask=instr_mask,
-                                      image_feat=candidate_views,
-                                      image_mask=candidate_mask,
-                                      teacher_action=teacher_action)
+                instr_ids, instr_mask, candidate_views, candidate_mask, teacher_action = data
 
-                    nap_loss = nap_loss_fun(nap_preds, teacher_action)
-                    nap_loss.backward()
+                nap_preds = model('nap',
+                                  instr_ids=instr_ids,
+                                  instr_mask=instr_mask,
+                                  image_feat=candidate_views,
+                                  image_mask=candidate_mask,
+                                  teacher_action=teacher_action)
 
-            except StopIteration as e:
-                print('\n')
-                break
+                nap_loss = nap_loss_fun(nap_preds, teacher_action)
+                nap_loss.backward()
 
             # 3. update the parameters
             if (index + 1) % args.gradient_accumulation_steps == 0:
@@ -346,7 +349,7 @@ if __name__ == '__main__':
                 optimizer.zero_grad()
 
             # 4. print the training progress
-            if index < 1300:
+            if index < 1500:
                 loss_str = ''
                 if 'mlm' in args.proxy:
                     loss_str += 'mlm loss %.4f,' % mlm_loss.item()

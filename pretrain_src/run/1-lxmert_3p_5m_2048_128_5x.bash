@@ -12,4 +12,5 @@ args="--gpu_id ${gpu_id}
       --img_feat_dim 2048
       --angle_feat_dim 128"
 
-nohup python -u -m torch.distributed.launch --nproc_per_node=1 main_r2r_3p_ddp.py $args > vln-pretrain.log 2>&1 &
+#nohup python -u -m torch.distributed.launch --nproc_per_node=1 main_r2r_3p_ddp.py $args > vln-pretrain.log 2>&1 &
+python -u -m torch.distributed.launch --nproc_per_node=1 main_r2r_3p_ddp.py $args

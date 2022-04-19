@@ -1,6 +1,7 @@
 import time
 import random
 import csv
+csv.field_size_limit(2500000)
 import base64
 import logging
 import numpy as np

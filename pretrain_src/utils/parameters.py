@@ -53,6 +53,10 @@ class Param:
                                  default=5,
                                  type=int)
 
+        self.parser.add_argument('--proxy',
+                                 type=str,
+                                 default='mlm,nap,tom')
+
         # Data preparation
         self.parser.add_argument('--views',
                                  type=int,

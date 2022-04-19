@@ -13,7 +13,6 @@ import tensorboardX
 
 from utils.parameters import args
 
-
 # -------------------------------------------------------------------------------------- #
 # logging settings
 # -------------------------------------------------------------------------------------- #
@@ -21,7 +20,7 @@ _LOG_FMT = '%(asctime)s - %(levelname)s - %(name)s --> %(message)s'
 _DATE_FMT = '%m/%d/%Y %H:%M:%S'
 logging.basicConfig(format=_LOG_FMT, datefmt=_DATE_FMT, level=logging.INFO)
 
-fh = logging.FileHandler(args.log_dir+'/log.txt')
+fh = logging.FileHandler(args.log_dir + '/log.txt')
 formatter = logging.Formatter(_LOG_FMT, datefmt=_DATE_FMT)
 fh.setFormatter(formatter)
 

@@ -1,5 +1,6 @@
 from utils.parameters import args
 import os
+
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 import json
 import random
@@ -46,21 +47,8 @@ def set_random_seed(_seed):
 
 
 if __name__ == '__main__':
-    # -------------------------------------------------------------------------------------- #
-    # set wandb project
-    # -------------------------------------------------------------------------------------- #
-    if args.local_rank == 0:
-        wandb.init(config=args, project="vln-project-pretrain", entity="susanping")
-
-        wandb.config.update({
-            "proxy": ['mlm', 'nap', 'tom'],
-            "text_model": 'bert',
-            "vison_model": args.feature,
-            "xmodal_model": 'lxmert'
-        })
-
     # ------------------------------------------- #
-    # set tensorboard and log writer
+    # set seed and log writer
     # ------------------------------------------- #
     seed = args.seed
     if args.local_rank != -1:
@@ -69,7 +57,7 @@ if __name__ == '__main__':
     add_log_to_file(LOGGER)
 
     # ------------------------------------------- #
-    # set cuda and multi-gpu
+    # set cuda and distributed training
     # ------------------------------------------- #
     # init the ddp
     dist.init_process_group(backend='nccl')
@@ -86,7 +74,7 @@ if __name__ == '__main__':
     config.img_feature_dim = args.img_feat_dim + args.angle_feat_dim
     config.visual_pos_dim = 4
     config.x_layers = args.x_layers
-    config.pretrain_tasks = ['mlm', 'nap', 'tom']
+    config.pretrain_tasks = args.proxy
     config.pred_head_dropout_prob = 0.2
 
     model = VlnModelPreTraining(config=config).cuda()
@@ -173,6 +161,7 @@ if __name__ == '__main__':
                                     drop_last=True)
 
     LOGGER.info(f"Finish creating all dataset and dataloader, train on {len(train_nap_dataloader.sampler)} items, validate on {len(val_nap_dataset)} items")
+
     # ------------------------------------------- #
     # create loss function and the optimizer
     # ------------------------------------------- #
@@ -188,9 +177,9 @@ if __name__ == '__main__':
     # ------------------------------------------- #
     LOGGER.info(f"********** Running training with {args.local_rank} GPU, total epoch {args.epoch}. **********")
     optim_step = 10
-    task = config.pretrain_tasks
     optimizer.zero_grad()
-    best_model = {'mlm_acc': 0.0,
+    best_model = {'score': 0.0,
+                  'mlm_acc': 0.0,
                   'nap_acc': 0.0,
                   'tom_acc': 0.0}
 
@@ -212,12 +201,23 @@ if __name__ == '__main__':
         total_iter = len(train_nap_dataloader.sampler) // args.batchSize * args.epoch
         warmup_iter = total_iter // 5
         while True:
-            index += args.batchSize
-            update_para = False
+            # -------------------------------------------------------------------------------------- #
+            # set wandb project
+            # -------------------------------------------------------------------------------------- #
+            if args.local_rank == 0 and index == args.batchSize:
+                wandb.init(config=args, project="vln-project-pretrain", entity="susanping")
 
+                wandb.config.update({
+                    "proxy": args.proxy,
+                    "text_model": 'bert',
+                    "vison_model": args.feature,
+                    "xmodal_model": 'lxmert'
+                })
+
+            index += args.batchSize
             # 1.train mlm proxy task
             try:
-                if 'mlm' in task:
+                if 'mlm' in args.proxy:
                     data = next(train_mlm_iter)
                     with torch.no_grad():
                         data = [item.cuda(non_blocking=True) for item in data]
@@ -242,7 +242,7 @@ if __name__ == '__main__':
 
             # 2.train tom proxy task
             try:
-                if 'tom' in task:
+                if 'tom' in args.proxy:
                     data = next(train_tom_iter)
                     with torch.no_grad():
                         data = [item.cuda(non_blocking=True) for item in data]
@@ -267,7 +267,7 @@ if __name__ == '__main__':
 
             # 3.train nap proxy task
             try:
-                if 'nap' in task:
+                if 'nap' in args.proxy:
                     data = next(train_nap_iter)
                     with torch.no_grad():
                         data = [item.cuda(non_blocking=True) for item in data]
@@ -291,7 +291,6 @@ if __name__ == '__main__':
 
             # 3. update the parameters
             if (index + 1) % args.gradient_accumulation_steps == 0:
-                update_para = True
                 optim_step += 1
 
                 lr_this_step = get_lr_sched(optim_step, args.lr, warmup_iter, total_iter)
@@ -305,45 +304,60 @@ if __name__ == '__main__':
 
             # 4. print the training progress
             if index < 1300:
-                print_progress(index, len(train_nap_dataloader.sampler), prefix='Progress:',
-                               suffix='Complete. Mlm loss is %.4f, Nap loss is %.4f, Tom loss is Lr is  %.4f, %.8f, device id: %s' % (mlm_loss.item(),
-                                                                                                                                      nap_loss.item(),
-                                                                                                                                      tom_loss.item(),
-                                                                                                                                      lr_this_step,
-                                                                                                                                      args.local_rank))
+                loss_str = ''
+                if 'mlm' in args.proxy:
+                    loss_str += 'mlm loss is %.4f,' % mlm_loss.item()
+                if 'tom' in args.proxy:
+                    loss_str += 'tom loss is %.4f,' % tom_loss.item()
+                if 'nap' in args.proxy:
+                    loss_str += 'nap loss is %.4f,' % nap_loss.item()
+
+                loss_str += 'lr is  %.4f, device id: %s.' % (lr_this_step, args.local_rank)
+                print_progress(index, len(train_nap_dataloader.sampler), prefix='Progress:', suffix='Complete. %s' % loss_str)
+
             # log with wandb
-            if args.local_rank == 0:
-                wandb.log({"mlm_loss": mlm_loss.item(),
-                           "nap_loss": nap_loss.item(),
-                           "tom_loss": tom_loss.item(),
-                           "lr": lr_this_step})
+            if args.local_rank == 0 and index >= args.batchSize:
+                if 'mlm' in args.proxy:
+                    wandb.log({"mlm_loss": mlm_loss.item()})
+                if 'tom' in args.proxy:
+                    wandb.log({"tom_loss": tom_loss.item()})
+                if 'nap' in args.proxy:
+                    wandb.log({"nap_loss": nap_loss.item()})
+
+                wandb.log({"lr": lr_this_step})
 
             # 5. validate at each log iter
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4
-            if args.local_rank == 0:
-                if (optim_step % val_iter) == 0:
-                    if 'mlm' in task:
-                        mlm_val = validate(model, 'mlm', val_mlm_dataloader)
-                    if 'nap' in task:
-                        nap_val = validate(model, 'nap', val_nap_dataloader)
-                    if 'tom' in task:
-                        tom_val = validate(model, 'tom', val_tom_dataloader)
-                    model.train()
+            if args.local_rank == 0 and (optim_step % val_iter) == 0:
+                now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0}
+                if 'mlm' in args.proxy:
+                    mlm_val = validate(model, 'mlm', val_mlm_dataloader)
+                    wandb.log({"mlm_acc": mlm_val['acc']})
+                    now_model['score'] += mlm_val['acc'] * 0.4
+                    now_model['mlm_acc'] = mlm_val['acc']
 
-                    # log with wandb
-                    wandb.log({"mlm_acc": mlm_val['acc'],
-                               "nap_acc": nap_val['acc'],
-                               "tom_acc": tom_val['acc']})
+                if 'nap' in args.proxy:
+                    nap_val = validate(model, 'nap', val_nap_dataloader)
+                    wandb.log({"nap_acc": nap_val['acc']})
+                    now_model['score'] += nap_val['acc'] * 0.5
+                    now_model['nap_acc'] = nap_val['acc']
 
-                    # if mlm_val['acc'] > best_model['mlm_acc'] and nap_val['acc'] > best_model['nap_acc']:
-                    if (mlm_val['acc'] * 0.4 + nap_val['acc'] * 0.5 + tom_val['acc'] * 0.2) > \
-                            (best_model['mlm_acc'] * 0.4 + best_model['nap_acc'] * 0.5 + best_model['tom_acc'] * 0.2):
-                        best_model['mlm_acc'], best_model['nap_acc'], best_model['tom_acc'] = mlm_val['acc'], nap_val['acc'], tom_val['acc']
+                if 'tom' in args.proxy:
+                    tom_val = validate(model, 'tom', val_tom_dataloader)
+                    wandb.log({"tom_acc": tom_val['acc']})
+                    now_model['score'] += tom_val['acc'] * 0.3
+                    now_model['tom_acc'] = tom_val['acc']
 
-                        save_path = args.log_dir + '/best_model/'
-                        model.module.save_pretrained(save_path)
-                        model.module.bert.save_pretrained(save_path + '/bert')
-                        LOGGER.info(f"Best model saved.")
+                model.train()
+
+                # record the best model
+                if now_model['score'] > best_model['score']:
+                    best_model.update(now_model)
+
+                    save_path = args.log_dir + '/best_model/'
+                    model.module.save_pretrained(save_path)
+                    model.module.bert.save_pretrained(save_path + '/bert')
+                    LOGGER.info(f"Best model saved.")
 
         LOGGER.info(f"Finish the {epoch} train epoch!")
 
@@ -352,11 +366,11 @@ if __name__ == '__main__':
         # ------------------------------------------- #
         if args.local_rank == 0:
             model.eval()
-            if 'mlm' in task:
+            if 'mlm' in args.proxy:
                 validate(model, 'mlm', val_mlm_dataloader)
-            if 'nap' in task:
+            if 'nap' in args.proxy:
                 validate(model, 'nap', val_nap_dataloader)
-            if 'tom' in task:
+            if 'tom' in args.proxy:
                 validate(model, 'tom', val_tom_dataloader)
             LOGGER.info(f"Finishs the {epoch} validate epoch!")
 

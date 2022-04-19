@@ -378,42 +378,44 @@ if __name__ == '__main__':
 
             # 5. validate at each log iter
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4
-            if args.local_rank == 0 and (optim_step % val_iter) == 0:
-                now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
-                if 'mlm' in args.proxy:
-                    mlm_val = validate(model, 'mlm', val_mlm_dataloader)
-                    wandb.log({"mlm_acc": mlm_val['acc']})
-                    now_model['score'] += mlm_val['acc'] * 0.5
-                    now_model['mlm_acc'] = mlm_val['acc']
+            if args.local_rank == 0:
+                if (optim_step % val_iter) == 0:
+                    print("validate for best model", args.proxy)
+                    now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
+                    if 'mlm' in args.proxy:
+                        mlm_val = validate(model, 'mlm', val_mlm_dataloader)
+                        wandb.log({"mlm_acc": mlm_val['acc']})
+                        now_model['score'] += mlm_val['acc'] * 0.5
+                        now_model['mlm_acc'] = mlm_val['acc']
 
-                if 'nap' in args.proxy:
-                    nap_val = validate(model, 'nap', val_nap_dataloader)
-                    wandb.log({"nap_acc": nap_val['acc']})
-                    now_model['score'] += nap_val['acc'] * 0.5
-                    now_model['nap_acc'] = nap_val['acc']
+                    if 'nap' in args.proxy:
+                        nap_val = validate(model, 'nap', val_nap_dataloader)
+                        wandb.log({"nap_acc": nap_val['acc']})
+                        now_model['score'] += nap_val['acc'] * 0.5
+                        now_model['nap_acc'] = nap_val['acc']
 
-                if 'tom' in args.proxy:
-                    tom_val = validate(model, 'tom', val_tom_dataloader)
-                    wandb.log({"tom_acc": tom_val['acc']})
-                    now_model['score'] += tom_val['acc'] * 0.3
-                    now_model['tom_acc'] = tom_val['acc']
+                    if 'tom' in args.proxy:
+                        tom_val = validate(model, 'tom', val_tom_dataloader)
+                        wandb.log({"tom_acc": tom_val['acc']})
+                        now_model['score'] += tom_val['acc'] * 0.3
+                        now_model['tom_acc'] = tom_val['acc']
 
-                if 'itm' in args.proxy:
-                    itm_val = validate(model, 'itm', val_itm_dataloader)
-                    wandb.log({"itm_acc": itm_val['acc']})
-                    now_model['score'] += itm_val['acc'] * 0.4
-                    now_model['itm_acc'] = itm_val['acc']
+                    if 'itm' in args.proxy:
+                        itm_val = validate(model, 'itm', val_itm_dataloader)
+                        wandb.log({"itm_acc": itm_val['acc']})
+                        now_model['score'] += itm_val['acc'] * 0.4
+                        now_model['itm_acc'] = itm_val['acc']
 
-                model.train()
+                    model.train()
 
-                # record the best model
-                if now_model['score'] > best_model['score']:
-                    best_model.update(now_model)
+                    # record the best model
+                    if now_model['score'] > best_model['score']:
+                        best_model.update(now_model)
 
-                    save_path = args.log_dir + '/best_model/'
-                    model.module.save_pretrained(save_path)
-                    model.module.bert.save_pretrained(save_path + '/bert')
-                    LOGGER.info(f"Best model saved.")
+                        save_path = args.log_dir + '/best_model/'
+                        model.module.save_pretrained(save_path)
+                        model.module.bert.save_pretrained(save_path + '/bert')
+                        LOGGER.info(f"Best model saved.")
 
         LOGGER.info(f"Finish the {epoch} train epoch!")
 

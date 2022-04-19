@@ -116,7 +116,7 @@ class VlnModelPreTraining(BertPreTrainedModel):
                 teacher_action=None):
         probs = rd()
         if probs < 0.6:
-            image_feat[..., :-args.angle_feat_size] = self.drop_env(image_feat[..., :-args.angle_feat_size])
+            image_feat[..., :-args.angle_feat_dim] = self.drop_env(image_feat[..., :-args.angle_feat_dim])
 
         if 'mlm' == task:
             _, lang_output, _ = self.bert(input_ids=instr_ids,

@@ -82,7 +82,7 @@ class Param:
 
         self.parser.add_argument('--featdropout',
                                  type=float,
-                                 default=0.4)
+                                 default=0.3)
 
         # Training Configurations
         self.parser.add_argument('--num_workers',

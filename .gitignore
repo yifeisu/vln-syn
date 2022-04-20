@@ -12,3 +12,4 @@ pretrain_src/run/__pycache__/
 *.pyc
 finetune_src/features.zip
 *.tsv
+*.zip

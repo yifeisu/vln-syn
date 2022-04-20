@@ -59,7 +59,7 @@ class Param:
         self.parser.add_argument('--decay',
                                  dest='weight_decay',
                                  type=float,
-                                 default=0.001)
+                                 default=0.0003)
 
         self.parser.add_argument("--resume",
                                  default=None,

@@ -273,6 +273,8 @@ def read_img_features(feature_option, test_only=False):
         feature_store = 'image_features/CLIP-ViT-B-32-views.tsv'
     elif feature_option == 'res152-imagenet':
         feature_store = 'image_features/ResNet-152-imagenet.tsv'
+    elif feature_option == 'clip_vit_st_samefilter':
+        feature_store = 'image_features/CLIP-ViT-B-32-views-st-samefilter.tsv'
 
     print("Start loading the image feature ... (~15 seconds)")
     start = time.time()

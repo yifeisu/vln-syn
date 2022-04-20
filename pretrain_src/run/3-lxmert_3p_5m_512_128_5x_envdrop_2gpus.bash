@@ -4,7 +4,7 @@ args="--gpu_id 2,3
       --name ${name}
 
       --epoch 4
-      --batchSize 48
+      --batchSize 128
       --num_workers 2
 
       --x_layers 5

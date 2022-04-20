@@ -112,7 +112,7 @@ class Seq2SeqAgent(BaseAgent):
     def _build_optimizer(self, _args):
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
 
-        vln_model_param = list(self.vln_model.parameters())
+        vln_model_param = list(self.vln_model.named_parameters())
         vln_model_grouped_parameters = [{'params': [p for n, p in vln_model_param
                                                     if not any(nd in n for nd in no_decay)],
                                          'weight_decay': _args.weight_decay},
@@ -121,7 +121,7 @@ class Seq2SeqAgent(BaseAgent):
                                          'weight_decay': 0.0}]
         self.vln_model_optimizer = args.optimizer(vln_model_grouped_parameters, lr=_args.lr)
 
-        critic_param = list(self.critic.parameters())
+        critic_param = list(self.critic.named_parameters())
         critic_grouped_parameters = [{'params': [p for n, p in critic_param
                                                  if not any(nd in n for nd in no_decay)],
                                       'weight_decay': _args.weight_decay},

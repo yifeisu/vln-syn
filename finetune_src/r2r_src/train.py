@@ -79,6 +79,10 @@ def train(train_env, tok, n_iters, log_every=1000, val_envs={}, aug_env=None):
                 loss_log_str = ", the IL loss is %.4f." % listner.logs['IL_loss'][-1]
                 print_progress(jdx, jdx_length, prefix='Progress:', suffix='Complete' + loss_log_str)
 
+        if idx == start_iter:
+            # some key args to record
+            wandb.init(config=args, project="vln-project-finetune", entity="susanping")
+
         # Log the training stats to wandb
         total = max(sum(listner.logs['total']), 1)
         length = max(len(listner.logs['critic_loss']), 1)
@@ -87,10 +91,11 @@ def train(train_env, tok, n_iters, log_every=1000, val_envs={}, aug_env=None):
         IL_loss = sum(listner.logs['IL_loss']) / max(len(listner.logs['IL_loss']), 1)
         entropy = sum(listner.logs['entropy']) / total
 
-        wandb.log({"train/critic": critic_loss,
-                   "train/IL_loss": IL_loss,
-                   "train/RL_loss": RL_loss,
-                   "train/total_actions": total})
+        if idx >= start_iter:
+            wandb.log({"train/critic": critic_loss,
+                       "train/IL_loss": IL_loss,
+                       "train/RL_loss": RL_loss,
+                       "train/total_actions": total})
 
         # writer.add_scalar("policy_entropy", entropy, idx)
         # writer.add_scalar("max_length", length, idx)
@@ -270,8 +275,6 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------------------- #
     # init the wandb project and runs
     # -------------------------------------------------------------------------------------- #
-    # some key args to record
-    wandb.init(config=args, project="vln-project-finetune", entity="susanping")
 
     if args.train in ['listener', 'validlistener']:
         train_val(test_only=args.test_only)

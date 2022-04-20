@@ -29,6 +29,11 @@ class Param:
                                  default=5)
 
         # Training process hyperparameters
+        self.parser.add_argument('--gpu_id',
+                                 default=0,
+                                 type=str,
+                                 help='gpu to used')
+
         self.parser.add_argument('--train',
                                  type=str,
                                  default='auglistener')
@@ -54,7 +59,7 @@ class Param:
         self.parser.add_argument('--decay',
                                  dest='weight_decay',
                                  type=float,
-                                 default=0.01)
+                                 default=0.001)
 
         self.parser.add_argument("--resume",
                                  default=None,
@@ -67,6 +72,7 @@ class Param:
         self.parser.add_argument('--dropout',
                                  type=float,
                                  default=0.5)
+
         self.parser.add_argument('--featdropout',
                                  type=float,
                                  default=0.4)

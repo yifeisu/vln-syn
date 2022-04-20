@@ -1,4 +1,3 @@
-
 .idea/
 
 finetune_src/image_features/
@@ -7,8 +6,9 @@ finetune_src/snap/
 pretrain_src/data/
 pretrain_src/snap/
 pretrain_src/utils/__pycache__/
-pretrain_src/test_dataset.py
 test_dataset.py
 pretrain_src/model/__pycache__/
 pretrain_src/run/__pycache__/
 *.pyc
+finetune_src/features.zip
+*.tsv

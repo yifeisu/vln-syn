@@ -95,11 +95,10 @@ class Seq2SeqAgent(BaseAgent):
         self.models = (self.vln_model, self.critic)
 
         # Optimizers
-        self.vln_model_optimizer = args.optimizer(self.vln_model.parameters(), lr=args.lr)
-        self.critic_optimizer = args.optimizer(self.critic.parameters(), lr=args.lr)
-        self.optimizers = (self.vln_model_optimizer, self.critic_optimizer)
-
-        # Learning rate
+        # self.vln_model_optimizer = args.optimizer(self.vln_model.parameters(), lr=args.lr)
+        # self.critic_optimizer = args.optimizer(self.critic.parameters(), lr=args.lr)
+        # self.optimizers = (self.vln_model_optimizer, self.critic_optimizer)
+        self._build_optimizer(args)
 
         # Evaluations
         self.losses = []
@@ -109,6 +108,31 @@ class Seq2SeqAgent(BaseAgent):
         # Logs
         sys.stdout.flush()
         self.logs = defaultdict(list)
+
+    def _build_optimizer(self, _args):
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+
+        vln_model_param = list(self.vln_model.parameters())
+        vln_model_grouped_parameters = [{'params': [p for n, p in vln_model_param
+                                                    if not any(nd in n for nd in no_decay)],
+                                         'weight_decay': _args.weight_decay},
+                                        {'params': [p for n, p in vln_model_param
+                                                    if any(nd in n for nd in no_decay)],
+                                         'weight_decay': 0.0}]
+        self.vln_model_optimizer = args.optimizer(vln_model_grouped_parameters, lr=_args.lr)
+
+        critic_param = list(self.critic.parameters())
+        critic_grouped_parameters = [{'params': [p for n, p in critic_param
+                                                 if not any(nd in n for nd in no_decay)],
+                                      'weight_decay': _args.weight_decay},
+                                     {'params': [p for n, p in critic_param
+                                                 if any(nd in n for nd in no_decay)],
+                                      'weight_decay': 0.0}]
+        self.critic_optimizer = args.optimizer(critic_grouped_parameters, lr=_args.lr)
+
+        print("In vln model, %s parameters not decay; In critic model, %s parameters not decay" %
+              (len(vln_model_grouped_parameters[1]['params']), len(critic_grouped_parameters[1]['params'])))
+        self.optimizers = (self.vln_model_optimizer, self.critic_optimizer)
 
     def _sort_batch(self, obs):
         seq_tensor = np.array([ob['instr_encoding'] for ob in obs])

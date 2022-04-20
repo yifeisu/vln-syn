@@ -74,6 +74,7 @@ if __name__ == '__main__':
     config.img_feature_dim = args.img_feat_dim + args.angle_feat_dim
     config.visual_pos_dim = 4
     config.x_layers = args.x_layers
+    config.r_layers = 0
     config.pretrain_tasks = args.proxy
     config.pred_head_dropout_prob = 0.2
 

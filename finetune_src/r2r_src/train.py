@@ -1,6 +1,8 @@
-import json
+from param import args
 import os
-# os.environ['CUDA_VISIBLE_DEVICES']='0'
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+
+import json
 import random
 import time
 import warnings
@@ -13,7 +15,7 @@ import wandb
 from agent import Seq2SeqAgent
 from env import R2RBatch
 from eval import Evaluation
-from param import args
+
 from utils import timeSince, read_img_features, print_progress
 from vln_lxmert.vln_lxmert_init import get_tokenizer
 

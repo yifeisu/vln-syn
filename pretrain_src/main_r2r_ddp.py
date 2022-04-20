@@ -1,5 +1,3 @@
-from tensorflow.python.training.training_util import global_step
-
 from utils.parameters import args
 import os
 

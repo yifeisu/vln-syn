@@ -3,7 +3,7 @@ name=pretrain_4p_5m_512_128_4x_envdrop_3gpus_no_lxpre_loader_sample
 args="--gpu_id 0,1,2
       --name ${name}
 
-      --epoch 4
+      --epoch 6
       --batchSize 128
       --num_workers 1
 

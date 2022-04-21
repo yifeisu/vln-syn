@@ -192,12 +192,12 @@ if __name__ == '__main__':
 
     optimizer = build_optimizer(model, args)
 
-    loss_weight = {'mlm': 3,
-                   'nap': 2.0,
-                   'tom': 1.0,
-                   'itm': 1.5}
+    loss_weight = {'mlm': 1.5,
+                   'nap': 1.3,
+                   'tom': 1.1,
+                   'itm': 1.2}
     sample_rate = {'mlm': 4,
-                   'nap': 3,
+                   'nap': 2,
                    'tom': 1,
                    'itm': 2}
     loader_list = ['mlm']*sample_rate['mlm'] + ['nap']*sample_rate['nap'] + ['tom']*sample_rate['tom'] + ['itm']*sample_rate['itm']

@@ -1,7 +1,7 @@
 # name of the exp, where the "log.txt" and "weights" store
 name=vln_lxmert_4p_envdrop_5m_512_128_5x_samefilter_wdecay
 
-args="--gpu_id 2
+args="--gpu_id 3
       --name ${name}
       --train auglistener
 
@@ -9,7 +9,7 @@ args="--gpu_id 2
       --batch_size 24
       --optim adamW
 
-      --pretrain_path /data/syf/vln-syn/pretrain_src/snap/pretrain_4p_5m_512_128_5x_envdrop_3gpus/best_model/bert/
+      --pretrain_path /data/syf/vln-syn/pretrain_src/snap/pretrain_4p_5m_512_128_5x_envdrop_2gpus/0/bert/
 
       --features clip_vit_st_samefilter
       --aug r2r_data/prevalent_aug.json

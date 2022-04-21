@@ -77,6 +77,8 @@ class VlnModelPreTraining(BertPreTrainedModel):
         super().__init__(config)
 
         self.config = config
+
+        # proxy head
         if 'mlm' in config.pretrain_tasks:
             self.mlm_head = BertOnlyMLMHead(self.config)
         if 'nap' in config.pretrain_tasks:
@@ -90,13 +92,16 @@ class VlnModelPreTraining(BertPreTrainedModel):
         self.drop_env = nn.Dropout(p=args.featdropout)
 
         # initial the weights excpet for the lxmert vlnmodel
-        # self.init_weights()
         self.apply(self._init_weights)
-        logger.info("Finish initializing the proxy heads randomly!")
-        # use the pretrained lxmert weights to initial the vlnmodel
-        self.bert = VlnModel.from_pretrained('unc-nlp/lxmert-base-uncased', config=config)
-        # self.bert = VlnModel(config=config)
-        logger.info("Finish initializing the lxmert vlnmodel with the pretrained weights!")
+        logger.info("Finish initializing the vlnpretrian model randomly!")
+
+        if args.lxmert_pretrain:
+            # use the pretrained lxmert weights to initial the vlnmodel
+            self.bert = VlnModel.from_pretrained('unc-nlp/lxmert-base-uncased', config=config)
+            logger.info("Finish initializing the lxmert vlnmodel with the pretrained weights!")
+        else:
+            self.bert = VlnModel(config=config)
+            logger.info("Finish initializing the lxmert vlnmodel randomly!")
 
         # tie the mlm decoder with the bert embedding weights
         self.tie_weights()

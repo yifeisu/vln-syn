@@ -57,6 +57,10 @@ class Param:
                                  type=str,
                                  default='mlm,nap,tom')
 
+        self.parser.add_argument('--lxmert_pretrain',
+                                 type=int,
+                                 default=1)
+
         # Data preparation
         self.parser.add_argument('--views',
                                  type=int,

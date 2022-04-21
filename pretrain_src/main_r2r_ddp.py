@@ -192,6 +192,16 @@ if __name__ == '__main__':
 
     optimizer = build_optimizer(model, args)
 
+    loss_weight = {'mlm': 3,
+                   'nap': 2.0,
+                   'tom': 1.0,
+                   'itm': 1.5}
+    sample_rate = {'mlm': 4,
+                   'nap': 3,
+                   'tom': 1,
+                   'itm': 2}
+    loader_list = ['mlm']*sample_rate['mlm'] + ['nap']*sample_rate['nap'] + ['tom']*sample_rate['tom'] + ['itm']*sample_rate['itm']
+    LOGGER.info(loader_list)
     # ------------------------------------------- #
     # training and validate process
     # ------------------------------------------- #
@@ -238,10 +248,12 @@ if __name__ == '__main__':
                     "xmodal_model": 'lxmert'
                 })
 
-            index += 1
             global_step += 1
+
+            task = random.choice(loader_list)
+
             # 1.train mlm proxy task
-            if 'mlm' in args.proxy:
+            if 'mlm' == task:
                 try:
                     data = next(train_mlm_iter)
                 except StopIteration as e:
@@ -263,10 +275,11 @@ if __name__ == '__main__':
 
                 mlm_loss = mlm_loss_fun(mlm_preds,
                                         instr_labels[instr_labels != -1])
+                mlm_loss = mlm_loss * loss_weight['mlm']
                 mlm_loss.backward()
 
             # 2.train tom proxy task
-            if 'tom' in args.proxy:
+            if 'tom' == task:
                 try:
                     data = next(train_tom_iter)
                 except StopIteration as e:
@@ -288,10 +301,11 @@ if __name__ == '__main__':
 
                 tom_loss = tom_loss_fun(tom_pred,
                                         traj_labels)
+                tom_loss = tom_loss * loss_weight['tom']
                 tom_loss.backward()
 
             # 3.train itm proxy task
-            if 'itm' in args.proxy:
+            if 'itm' == task:
                 try:
                     data = next(train_itm_iter)
                 except StopIteration as e:
@@ -313,10 +327,11 @@ if __name__ == '__main__':
 
                 itm_loss = itm_loss_fun(itm_pred,
                                         traj_labels)
+                itm_loss = itm_loss * loss_weight['itm']
                 itm_loss.backward()
 
             # 4.train nap proxy task
-            if 'nap' in args.proxy:
+            if 'nap' == task:
                 try:
                     data = next(train_nap_iter)
                 except StopIteration as e:
@@ -336,10 +351,12 @@ if __name__ == '__main__':
                                   teacher_action=teacher_action)
 
                 nap_loss = nap_loss_fun(nap_preds, teacher_action)
+                nap_loss = nap_loss * loss_weight['nap']
                 nap_loss.backward()
+                index += 1
 
             # 3. update the parameters
-            if (index + 1) % args.gradient_accumulation_steps == 0:
+            if (global_step + 1) % args.gradient_accumulation_steps == 0:
                 optim_step += 1
 
                 lr_this_step = get_lr_sched(optim_step, args.lr, warmup_iter, total_iter)
@@ -354,27 +371,27 @@ if __name__ == '__main__':
             # 4. print the training progress
             if index < 15:
                 loss_str = ''
-                if 'mlm' in args.proxy:
+                if 'mlm' == task:
                     loss_str += 'mlm loss %.4f,' % mlm_loss.item()
-                if 'tom' in args.proxy:
+                if 'tom' == task:
                     loss_str += 'tom loss %.4f,' % tom_loss.item()
-                if 'nap' in args.proxy:
+                if 'nap' == task:
                     loss_str += 'nap loss %.4f,' % nap_loss.item()
-                if 'itm' in args.proxy:
+                if 'itm' == task:
                     loss_str += 'itm loss %.4f,' % itm_loss.item()
 
                 loss_str += 'lr is  %.4f, device id: %s.' % (lr_this_step, args.local_rank)
-                print_progress(index, len(train_nap_dataloader.sampler)//args.batchSize, prefix='Progress:', suffix='Complete. %s' % loss_str)
+                print_progress(index, len(train_nap_dataloader.sampler) // args.batchSize, prefix='Progress:', suffix='Complete. %s' % loss_str)
 
             # log with wandb
             if args.local_rank == 0 and global_step > 1:
-                if 'mlm' in args.proxy:
+                if 'mlm' == task:
                     wandb.log({"mlm_loss": mlm_loss.item()}, step=global_step)
-                if 'tom' in args.proxy:
+                if 'tom' == task:
                     wandb.log({"tom_loss": tom_loss.item()}, step=global_step)
-                if 'nap' in args.proxy:
+                if 'nap' == task:
                     wandb.log({"nap_loss": nap_loss.item()}, step=global_step)
-                if 'itm' in args.proxy:
+                if 'itm' == task:
                     wandb.log({"itm_loss": itm_loss.item()}, step=global_step)
 
                 wandb.log({"lr": lr_this_step}, step=global_step)

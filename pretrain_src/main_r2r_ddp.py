@@ -213,7 +213,7 @@ if __name__ == '__main__':
                   'nap_acc': 0.0,
                   'tom_acc': 0.0,
                   'itm_acc': 0.0}
-
+    lr_this_step = 0
     global_step = 0
     for epoch in range(args.epoch):
         train_mlm_sampler.set_epoch(epoch)

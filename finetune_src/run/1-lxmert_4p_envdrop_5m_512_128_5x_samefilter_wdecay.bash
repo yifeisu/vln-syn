@@ -18,6 +18,7 @@ args="--gpu_id 3
       --feature_size 512
       --angleFeatSize 128
 
+      --decay 0.0001
       --feedback sample
       --mlWeight 0.20"
 

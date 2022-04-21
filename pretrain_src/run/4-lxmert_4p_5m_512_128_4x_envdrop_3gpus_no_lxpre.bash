@@ -5,7 +5,7 @@ args="--gpu_id 0,1,2
 
       --epoch 4
       --batchSize 128
-      --num_workers 2
+      --num_workers 1
 
       --gradient_accumulation_steps 1
 

@@ -5,7 +5,7 @@ args="--gpu_id 0
 
       --epoch 3
       --batchSize 64
-      --num_workers 2
+      --num_workers 1
 
       --x_layers 5
       --proxy mlm,nap,tom

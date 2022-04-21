@@ -250,7 +250,7 @@ if __name__ == '__main__':
 
             global_step += 1
             index += 1
-            if index >= len(train_nap_dataloader.sampler):
+            if index >= (len(train_nap_dataloader.sampler) // args.batchSize):
                 break
 
             task = random.choice(loader_list)

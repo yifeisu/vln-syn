@@ -1,11 +1,13 @@
 name=pretrain_4p_5m_512_128_4x_envdrop_3gpus_no_lxpre_loader_sample
 
-args="--gpu_id 0,1,3
+args="--gpu_id 0,1,2
       --name ${name}
 
       --epoch 4
       --batchSize 128
       --num_workers 2
+
+      --gradient_accumulation_steps 1
 
       --lxmert_pretrain 0
       --x_layers 4

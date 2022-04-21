@@ -249,9 +249,11 @@ if __name__ == '__main__':
                 })
 
             global_step += 1
+            index += 1
+            if index >= len(train_nap_dataloader.sampler):
+                break
 
             task = random.choice(loader_list)
-
             # 1.train mlm proxy task
             if 'mlm' == task:
                 try:
@@ -353,10 +355,9 @@ if __name__ == '__main__':
                 nap_loss = nap_loss_fun(nap_preds, teacher_action)
                 nap_loss = nap_loss * loss_weight['nap']
                 nap_loss.backward()
-                index += 1
 
             # 3. update the parameters
-            if (global_step + 1) % args.gradient_accumulation_steps == 0:
+            if (index + 1) % args.gradient_accumulation_steps == 0:
                 optim_step += 1
 
                 lr_this_step = get_lr_sched(optim_step, args.lr, warmup_iter, total_iter)
@@ -400,7 +401,6 @@ if __name__ == '__main__':
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4
             if args.local_rank == 0:
                 if (index % val_iter) == 0:
-                    print("validate for best model", args.proxy)
                     now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
                     if 'mlm' in args.proxy:
                         mlm_val = validate(model, 'mlm', val_mlm_dataloader)

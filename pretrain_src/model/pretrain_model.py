@@ -93,7 +93,7 @@ class VlnModelPreTraining(BertPreTrainedModel):
 
         # initial the weights excpet for the lxmert vlnmodel
         self.apply(self._init_weights)
-        logger.info("Finish initializing the vlnpretrian model randomly!")
+        logger.info("Finish initializing the vlnpretrian head randomly!")
 
         if args.lxmert_pretrain:
             # use the pretrained lxmert weights to initial the vlnmodel

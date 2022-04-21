@@ -197,7 +197,7 @@ if __name__ == '__main__':
                    'tom': 1.1,
                    'itm': 1.2}
     sample_rate = {'mlm': 4,
-                   'nap': 2,
+                   'nap': 3,
                    'tom': 1,
                    'itm': 2}
     loader_list = ['mlm']*sample_rate['mlm'] + ['nap']*sample_rate['nap'] + ['tom']*sample_rate['tom'] + ['itm']*sample_rate['itm']
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         model.train()
 
         total_iter = len(train_nap_dataloader.sampler) // args.batchSize * args.epoch
-        warmup_iter = total_iter // 5
+        warmup_iter = total_iter // 4 // args.gradient_accumulation_steps
         while True:
             # -------------------------------------------------------------------------------------- #
             # set wandb project
@@ -277,7 +277,7 @@ if __name__ == '__main__':
 
                 mlm_loss = mlm_loss_fun(mlm_preds,
                                         instr_labels[instr_labels != -1])
-                mlm_loss = mlm_loss * loss_weight['mlm']
+                mlm_loss = mlm_loss * loss_weight['mlm'] / args.gradient_accumulation_steps
                 mlm_loss.backward()
 
             # 2.train tom proxy task
@@ -303,7 +303,7 @@ if __name__ == '__main__':
 
                 tom_loss = tom_loss_fun(tom_pred,
                                         traj_labels)
-                tom_loss = tom_loss * loss_weight['tom']
+                tom_loss = tom_loss * loss_weight['tom'] / args.gradient_accumulation_steps
                 tom_loss.backward()
 
             # 3.train itm proxy task
@@ -329,7 +329,7 @@ if __name__ == '__main__':
 
                 itm_loss = itm_loss_fun(itm_pred,
                                         traj_labels)
-                itm_loss = itm_loss * loss_weight['itm']
+                itm_loss = itm_loss * loss_weight['itm'] / args.gradient_accumulation_steps
                 itm_loss.backward()
 
             # 4.train nap proxy task
@@ -353,7 +353,7 @@ if __name__ == '__main__':
                                   teacher_action=teacher_action)
 
                 nap_loss = nap_loss_fun(nap_preds, teacher_action)
-                nap_loss = nap_loss * loss_weight['nap']
+                nap_loss = nap_loss * loss_weight['nap'] / args.gradient_accumulation_steps
                 nap_loss.backward()
 
             # 3. update the parameters
@@ -361,7 +361,7 @@ if __name__ == '__main__':
                 optim_step += 1
 
                 lr_this_step = get_lr_sched(optim_step, args.lr, warmup_iter, total_iter)
-                lr_this_step = max(lr_this_step, 3e-8)
+                lr_this_step = max(lr_this_step, 5e-7)
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = lr_this_step
 

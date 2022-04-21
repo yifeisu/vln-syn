@@ -114,7 +114,7 @@ class Param:
 
         self.parser.add_argument('--grad_norm',
                                  type=float,
-                                 default=100.0)
+                                 default=50.0)
 
         self.args = self.parser.parse_args()
 

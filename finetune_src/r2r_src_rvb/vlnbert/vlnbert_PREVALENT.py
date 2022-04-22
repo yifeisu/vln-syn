@@ -9,7 +9,7 @@ import sys
 
 import torch
 from torch import nn
-from transformers.pytorch_transformers.modeling_bert import BertPreTrainedModel
+from pytorch_transformers.modeling_bert import BertPreTrainedModel
 
 logger = logging.getLogger(__name__)
 

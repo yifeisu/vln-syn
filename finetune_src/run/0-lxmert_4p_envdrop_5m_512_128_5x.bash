@@ -9,7 +9,7 @@ args="--gpu_id 3
       --batch_size 16
       --optim adamW
 
-      --pretrain_path /data/syf/vln-syn/pretrain_src/snap/pretrain_4p_5m_512_128_5x_envdrop_3gpus/best_model/bert/
+      --pretrain_path ../pretrain_src/snap/pretrain_4p_5m_512_128_5x_envdrop_3gpus/best_model/bert/
 
       --features clip_vit
       --aug r2r_data/prevalent_aug.json

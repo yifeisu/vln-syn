@@ -105,13 +105,13 @@ def pad_instr_tokens(instr_tokens, maxlength=20):
     if len(instr_tokens) > maxlength - 2:  # -2 for [CLS] and [SEP]
         instr_tokens = instr_tokens[:(maxlength - 2)]
 
-    # instr_tokens = ['[CLS]'] + instr_tokens + ['[SEP]']
-    # num_words = len(instr_tokens)  # - 1  # include [SEP]
-    # instr_tokens += ['[PAD]'] * (maxlength - len(instr_tokens))
-
-    instr_tokens = ['<|startoftext|>'] + instr_tokens + ['<|endoftext|>']
+    instr_tokens = ['[CLS]'] + instr_tokens + ['[SEP]']
     num_words = len(instr_tokens)  # - 1  # include [SEP]
-    instr_tokens += ['<|endoftext|>'] * (maxlength - len(instr_tokens))
+    instr_tokens += ['[PAD]'] * (maxlength - len(instr_tokens))
+
+    # instr_tokens = ['<|startoftext|>'] + instr_tokens + ['<|endoftext|>']
+    # num_words = len(instr_tokens)  # - 1  # include [SEP]
+    # instr_tokens += ['<|endoftext|>'] * (maxlength - len(instr_tokens))
 
     assert len(instr_tokens) == maxlength
 
@@ -258,7 +258,7 @@ def asMinutes(s):
 def timeSince(since, percent):
     now = time.time()
     s = now - since
-    es = s / (percent)
+    es = s / percent
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
@@ -675,11 +675,11 @@ class DTW(object):
 
     def __init__(self, graph, weight='weight', threshold=3.0):
         """Initializes a DTW object.
-    Args:
-      graph: networkx graph for the environment.
-      weight: networkx edge weight key (str).
-      threshold: distance threshold $d_{th}$ (float).
-    """
+        Args:
+          graph: networkx graph for the environment.
+          weight: networkx edge weight key (str).
+          threshold: distance threshold $d_{th}$ (float).
+        """
         self.graph = graph
         self.weight = weight
         self.threshold = threshold
@@ -688,13 +688,13 @@ class DTW(object):
 
     def __call__(self, prediction, reference, metric='sdtw'):
         """Computes DTW metrics.
-    Args:
-      prediction: list of nodes (str), path predicted by agent.
-      reference: list of nodes (str), the ground truth path.
-      metric: one of ['ndtw', 'sdtw', 'dtw'].
-    Returns:
-      the DTW between the prediction and reference path (float).
-    """
+        Args:
+          prediction: list of nodes (str), path predicted by agent.
+          reference: list of nodes (str), the ground truth path.
+          metric: one of ['ndtw', 'sdtw', 'dtw'].
+        Returns:
+          the DTW between the prediction and reference path (float).
+        """
         assert metric in ['ndtw', 'sdtw', 'dtw']
 
         dtw_matrix = np.inf * np.ones((len(prediction) + 1, len(reference) + 1))

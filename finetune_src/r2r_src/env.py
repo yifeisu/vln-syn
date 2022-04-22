@@ -149,6 +149,7 @@ class R2RBatch:
                             new_item['instr_id'] = '%s_%d' % (item['path_id'], j)
                             new_item['instructions'] = instr
 
+                            ''' BERT tokenizer '''
                             instr_tokens = tokenizer.tokenize(instr)
                             # padding the instruction length to the max length
                             padded_instr_tokens, num_words = pad_instr_tokens(instr_tokens, args.maxInput)

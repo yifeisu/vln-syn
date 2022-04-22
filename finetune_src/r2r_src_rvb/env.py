@@ -21,13 +21,14 @@ class EnvBatch():
     """ A simple wrapper for a batch of MatterSim environments,
         using discretized viewpoints and pretrained features """
 
-    def __init__(self, feature_store=None, batch_size=100):
+    def __init__(self, feature_store=None, batch_size=8):
         """
         1. Load pretrained image feature
         2. Init the Simulator.
         :param feature_store: The name of file stored the feature.
         :param batch_size:  Used to create the simulator list.
         """
+        self.batch_size = batch_size
         if feature_store:
             if type(feature_store) is dict:  # A silly way to avoid multiple reading
                 self.features = feature_store
@@ -114,11 +115,17 @@ class EnvBatch():
         # self.sim.makeAction(*actions_list)
 
 
-class R2RBatch():
+class R2RBatch:
     """ Implements the Room to Room navigation task, using discretized viewpoints and pretrained features """
 
-    def __init__(self, feature_store, batch_size=8, seed=10, splits=['train'], tokenizer=None,
+    def __init__(self,
+                 feature_store,
+                 batch_size=8,
+                 seed=10,
+                 splits=['train'],
+                 tokenizer=None,
                  name=None):
+
         self.env = EnvBatch(feature_store=feature_store, batch_size=batch_size)
         if feature_store:
             self.feature_size = self.env.feature_size

@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from vln_lxmert import vln_lxmert
+import model_PREVALENT
 import utils
 from param import args
 from utils import padding_idx, print_progress
@@ -80,25 +80,24 @@ class Seq2SeqAgent(BaseAgent):
                    'forward': (1, 0, 0),  # forward
                    '<end>': (0, 0, 0),  # <end>
                    '<start>': (0, 0, 0),  # <start>
-                   '<ignore>': (0, 0, 0)}  # <ignore>
+                   '<ignore>': (0, 0, 0)}# <ignore>
 
     def __init__(self, env, results_path, tok, episode_len=20):
         super(Seq2SeqAgent, self).__init__(env, results_path)
-        self.feedback = None
         self.tok = tok
         self.episode_len = episode_len
         self.feature_size = self.env.feature_size
 
         # Models
-        self.vln_model = vln_lxmert.VLNLXMERT(feature_size=self.feature_size + args.angle_feat_size).cuda()
-        self.critic = vln_lxmert.Critic().cuda()
-        self.models = (self.vln_model, self.critic)
+        if args.vlnbert == 'prevalent':
+            self.vln_bert = model_PREVALENT.VLNBERT(feature_size=self.feature_size + args.angle_feat_size).cuda()
+            self.critic = model_PREVALENT.Critic().cuda()
+        self.models = (self.vln_bert, self.critic)
 
         # Optimizers
-        # self.vln_model_optimizer = args.optimizer(self.vln_model.parameters(), lr=args.lr)
-        # self.critic_optimizer = args.optimizer(self.critic.parameters(), lr=args.lr)
-        # self.optimizers = (self.vln_model_optimizer, self.critic_optimizer)
-        self._build_optimizer(args)
+        self.vln_bert_optimizer = args.optimizer(self.vln_bert.parameters(), lr=args.lr)
+        self.critic_optimizer = args.optimizer(self.critic.parameters(), lr=args.lr)
+        self.optimizers = (self.vln_bert_optimizer, self.critic_optimizer)
 
         # Evaluations
         self.losses = []
@@ -108,31 +107,6 @@ class Seq2SeqAgent(BaseAgent):
         # Logs
         sys.stdout.flush()
         self.logs = defaultdict(list)
-
-    def _build_optimizer(self, _args):
-        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-
-        vln_model_param = list(self.vln_model.named_parameters())
-        vln_model_grouped_parameters = [{'params': [p for n, p in vln_model_param
-                                                    if not any(nd in n for nd in no_decay)],
-                                         'weight_decay': _args.weight_decay},
-                                        {'params': [p for n, p in vln_model_param
-                                                    if any(nd in n for nd in no_decay)],
-                                         'weight_decay': 0.0}]
-        self.vln_model_optimizer = args.optimizer(vln_model_grouped_parameters, lr=_args.lr)
-
-        critic_param = list(self.critic.named_parameters())
-        critic_grouped_parameters = [{'params': [p for n, p in critic_param
-                                                 if not any(nd in n for nd in no_decay)],
-                                      'weight_decay': _args.weight_decay},
-                                     {'params': [p for n, p in critic_param
-                                                 if any(nd in n for nd in no_decay)],
-                                      'weight_decay': 0.0}]
-        self.critic_optimizer = args.optimizer(critic_grouped_parameters, lr=_args.lr)
-
-        print("In vln model, %s parameters not decay; In critic model, %s parameters not decay" %
-              (len(vln_model_grouped_parameters[1]['params']), len(critic_grouped_parameters[1]['params'])))
-        self.optimizers = (self.vln_model_optimizer, self.critic_optimizer)
 
     def _sort_batch(self, obs):
         seq_tensor = np.array([ob['instr_encoding'] for ob in obs])
@@ -156,9 +130,7 @@ class Seq2SeqAgent(BaseAgent):
                list(perm_idx)
 
     def _feature_variable(self, obs):
-        """
-        Extract precomputed features into variable.
-        """
+        """ Extract precomputed features into variable. """
         features = np.empty((len(obs), args.views, self.feature_size + args.angle_feat_size), dtype=np.float32)
         for i, ob in enumerate(obs):
             features[i, :, :] = ob['feature']  # Image feat
@@ -169,7 +141,6 @@ class Seq2SeqAgent(BaseAgent):
         candidate_feat = np.zeros((len(obs),
                                    max(candidate_leng),
                                    self.feature_size + args.angle_feat_size), dtype=np.float32)
-
         # Note: The candidate_feat at len(ob['candidate']) is the feature for the END
         # which is zero in my implementation
         for i, ob in enumerate(obs):
@@ -287,30 +258,28 @@ class Seq2SeqAgent(BaseAgent):
         sentence, language_attention_mask, token_type_ids, seq_lengths, perm_idx = self._sort_batch(obs)
         perm_obs = obs[perm_idx]
 
-        ''' Language Branch '''
-        # language inputs bert
+        ''' Language BERT '''
         language_inputs = {'mode': 'language',
-                           'lang_feats': sentence,
-                           'lang_attention_mask': language_attention_mask}
-
-        pooler_output, language_features = self.vln_model(**language_inputs)
+                           'sentence': sentence,
+                           'attention_mask': language_attention_mask,
+                           'lang_mask': language_attention_mask,
+                           'token_type_ids': token_type_ids}
+        if args.vlnbert == 'prevalent':
+            h_t, language_features = self.vln_bert(**language_inputs)
 
         # Record starting point
-        traj = [{'instr_id': ob['instr_id'],
-                 'path': [(ob['viewpoint'],
-                           ob['heading'],
-                           ob['elevation'])]}
-                for ob in perm_obs]
+        traj = [{
+            'instr_id': ob['instr_id'],
+            'path': [(ob['viewpoint'], ob['heading'], ob['elevation'])],
+        } for ob in perm_obs]
 
         # Init the reward shaping
         last_dist = np.zeros(batch_size, np.float32)
         last_ndtw = np.zeros(batch_size, np.float32)
-        # The init distance from the view point to the target
-        for i, ob in enumerate(perm_obs):
+        for i, ob in enumerate(perm_obs):  # The init distance from the view point to the target
             last_dist[i] = ob['distance']
             path_act = [vp[0] for vp in traj[i]['path']]
-            if not args.submit:
-                last_ndtw[i] = self.ndtw_criterion[ob['scan']](path_act, ob['gt_path'], metric='ndtw')
+            last_ndtw[i] = self.ndtw_criterion[ob['scan']](path_act, ob['gt_path'], metric='ndtw')
 
         # Initialization the tracking state
         ended = np.array([False] * batch_size)  # Indices match permuation of the model, not env
@@ -323,48 +292,51 @@ class Seq2SeqAgent(BaseAgent):
         entropys = []
         ml_loss = 0.
 
-        # begin the rollout and navigation
         for t in range(self.episode_len):
+
             input_a_t, candidate_feat, candidate_leng = self.get_input_feat(perm_obs)
 
             # the first [CLS] token, initialized by the language BERT, serves
             # as the agent's state passing through time steps
-            if t >= 1:
+            if (t >= 1) or (args.vlnbert == 'prevalent'):
                 language_features = torch.cat((h_t.unsqueeze(1), language_features[:, 1:, :]), dim=1)
 
             visual_temp_mask = (utils.length2mask(candidate_leng) == 0).long()
             visual_attention_mask = torch.cat((language_attention_mask, visual_temp_mask), dim=-1)
 
-            ''' Visual Branch'''
+            self.vln_bert.vln_bert.config.directions = max(candidate_leng)
+            ''' Visual BERT '''
             visual_inputs = {'mode': 'visual',
-                             'lang_feats': language_features,
-                             'lang_attention_mask': language_attention_mask,
-                             'visual_feats': candidate_feat,
-                             'visual_attention_mask': visual_temp_mask,
-                             'action_angle_feat': input_a_t}
-
-            h_t, logits = self.vln_model(**visual_inputs)
+                             'sentence': language_features,
+                             'attention_mask': visual_attention_mask,
+                             'lang_mask': language_attention_mask,
+                             'vis_mask': visual_temp_mask,
+                             'token_type_ids': token_type_ids,
+                             'action_feats': input_a_t,
+                             # 'pano_feats':         f_t,
+                             'cand_feats': candidate_feat}
+            h_t, logit = self.vln_bert(**visual_inputs)
             hidden_states.append(h_t)
 
             # Mask outputs where agent can't move forward
             # Here the logit is [b, max_candidate]
             candidate_mask = utils.length2mask(candidate_leng)
-            logits.masked_fill_(candidate_mask, -float('inf'))
+            logit.masked_fill_(candidate_mask, -float('inf'))
 
             # Supervised training
             target = self._teacher_action(perm_obs, ended)
-            ml_loss += self.criterion(logits, target)
+            ml_loss += self.criterion(logit, target)
 
             # Determine next model inputs
             if self.feedback == 'teacher':
                 a_t = target  # teacher forcing
             elif self.feedback == 'argmax':
-                _, a_t = logits.max(1)  # student forcing - argmax
+                _, a_t = logit.max(1)  # student forcing - argmax
                 a_t = a_t.detach()
-                log_probs = F.log_softmax(logits, 1)  # Calculate the log_prob here
+                log_probs = F.log_softmax(logit, 1)  # Calculate the log_prob here
                 policy_log_probs.append(log_probs.gather(1, a_t.unsqueeze(1)))  # Gather the log_prob for each batch
             elif self.feedback == 'sample':
-                probs = F.softmax(logits, 1)  # sampling an action from model
+                probs = F.softmax(logit, 1)  # sampling an action from model
                 c = torch.distributions.Categorical(probs)
                 self.logs['entropy'].append(c.entropy().sum().item())  # For log
                 entropys.append(c.entropy())  # For optimization
@@ -377,8 +349,7 @@ class Seq2SeqAgent(BaseAgent):
             # NOTE: Env action is in the perm_obs space
             cpu_a_t = a_t.cpu().numpy()
             for i, next_id in enumerate(cpu_a_t):
-                # The last action is <end>
-                if next_id == (candidate_leng[i] - 1) or next_id == args.ignoreid or ended[i]:
+                if next_id == (candidate_leng[i] - 1) or next_id == args.ignoreid or ended[i]:  # The last action is <end>
                     cpu_a_t[i] = -1  # Change the <end> and ignore action to -1
 
             # Make action and get the new state
@@ -434,8 +405,6 @@ class Seq2SeqAgent(BaseAgent):
             if ended.all():
                 break
 
-        if args.submit:
-            train_rl = False
         if train_rl:
             # Last action in A2C
             input_a_t, candidate_feat, candidate_leng = self.get_input_feat(perm_obs)
@@ -443,16 +412,20 @@ class Seq2SeqAgent(BaseAgent):
             language_features = torch.cat((h_t.unsqueeze(1), language_features[:, 1:, :]), dim=1)
 
             visual_temp_mask = (utils.length2mask(candidate_leng) == 0).long()
+            visual_attention_mask = torch.cat((language_attention_mask, visual_temp_mask), dim=-1)
 
-            ''' Visual Branch in '''
+            self.vln_bert.vln_bert.config.directions = max(candidate_leng)
+            ''' Visual BERT '''
             visual_inputs = {'mode': 'visual',
-                             'lang_feats': language_features,
-                             'lang_attention_mask': language_attention_mask,
-                             'visual_feats': candidate_feat,
-                             'visual_attention_mask': visual_temp_mask,
-                             'action_angle_feat': input_a_t}
-
-            last_h_, logits = self.vln_model(**visual_inputs)
+                             'sentence': language_features,
+                             'attention_mask': visual_attention_mask,
+                             'lang_mask': language_attention_mask,
+                             'vis_mask': visual_temp_mask,
+                             'token_type_ids': token_type_ids,
+                             'action_feats': input_a_t,
+                             # 'pano_feats':         f_t,
+                             'cand_feats': candidate_feat}
+            last_h_, _ = self.vln_bert(**visual_inputs)
 
             rl_loss = 0.
 
@@ -509,10 +482,10 @@ class Seq2SeqAgent(BaseAgent):
         """ Evaluate once on each instruction in the current environment """
         self.feedback = feedback
         if use_dropout:
-            self.vln_model.train()
+            self.vln_bert.train()
             self.critic.train()
         else:
-            self.vln_model.eval()
+            self.vln_bert.eval()
             self.critic.eval()
         super(Seq2SeqAgent, self).test(iters)
 
@@ -538,22 +511,24 @@ class Seq2SeqAgent(BaseAgent):
     def optim_step(self):
         self.loss.backward()
 
-        torch.nn.utils.clip_grad_norm(self.vln_model.parameters(), 40.)
+        torch.nn.utils.clip_grad_norm(self.vln_bert.parameters(), 40.)
 
-        self.vln_model_optimizer.step()
+        self.vln_bert_optimizer.step()
         self.critic_optimizer.step()
 
     def train(self, n_iters, feedback='teacher', **kwargs):
         """ Train for a given number of iterations """
         self.feedback = feedback
 
-        self.vln_model.train()
+        self.vln_bert.train()
         self.critic.train()
 
         self.losses = []
         for iter in range(1, n_iters + 1):
-            self.vln_model_optimizer.zero_grad()
+
+            self.vln_bert_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
+
             self.loss = 0
 
             if feedback == 'teacher':
@@ -562,19 +537,17 @@ class Seq2SeqAgent(BaseAgent):
             elif feedback == 'sample':  # agents in IL and RL separately
                 if args.ml_weight != 0:
                     self.feedback = 'teacher'
-                    # IL train
                     self.rollout(train_ml=args.ml_weight, train_rl=False, **kwargs)
                 self.feedback = 'sample'
-                # IL + RL
                 self.rollout(train_ml=None, train_rl=True, **kwargs)
             else:
                 assert False
 
             self.loss.backward()
-            # clip the gradient to prevent grad boom
-            torch.nn.utils.clip_grad_norm(self.vln_model.parameters(), 50.0)
 
-            self.vln_model_optimizer.step()
+            torch.nn.utils.clip_grad_norm(self.vln_bert.parameters(), 40.)
+
+            self.vln_bert_optimizer.step()
             self.critic_optimizer.step()
 
             if args.aug is None:
@@ -593,14 +566,14 @@ class Seq2SeqAgent(BaseAgent):
                 'optimizer': optimizer.state_dict(),
             }
 
-        all_tuple = [("vln_model", self.vln_model, self.vln_model_optimizer),
+        all_tuple = [("vln_bert", self.vln_bert, self.vln_bert_optimizer),
                      ("critic", self.critic, self.critic_optimizer)]
         for param in all_tuple:
             create_state(*param)
         torch.save(states, path)
 
     def load(self, path):
-        """ Loads parameters (but not training state) """
+        ''' Loads parameters (but not training state) '''
         states = torch.load(path)
 
         def recover_state(name, model, optimizer):
@@ -614,8 +587,8 @@ class Seq2SeqAgent(BaseAgent):
             if args.loadOptim:
                 optimizer.load_state_dict(states[name]['optimizer'])
 
-        all_tuple = [("vln_model", self.vln_model, self.vln_model_optimizer),
+        all_tuple = [("vln_bert", self.vln_bert, self.vln_bert_optimizer),
                      ("critic", self.critic, self.critic_optimizer)]
         for param in all_tuple:
             recover_state(*param)
-        return states['vln_model']['epoch'] - 1
+        return states['vln_bert']['epoch'] - 1

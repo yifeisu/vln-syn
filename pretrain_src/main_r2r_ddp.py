@@ -233,7 +233,7 @@ if __name__ == '__main__':
                    'tom': 1,
                    'itm': 1}
 
-    loader_list = ''
+    loader_list = []
     if 'mlm' in args.proxy:
         loader_list += ['mlm']*sample_rate['mlm']
     if 'nap' in args.proxy:

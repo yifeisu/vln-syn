@@ -119,7 +119,7 @@ def validate_nar(_model, val_loader):
     val_log = {'loss': val_loss,
                'tok_per_s': n_data / tot_time}
 
-    LOGGER.info(f"Finished nap validation in {int(tot_time)} seconds, val_loss is: {val_loss * 100:.2f}")
+    LOGGER.info(f"Finished nar validation in {int(tot_time)} seconds, val_loss is: {val_loss * 100:.2f}")
     return val_log
 
 

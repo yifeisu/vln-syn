@@ -1,4 +1,4 @@
-name=pretrain_5p_5m_512_128_4x_envdrop_3gpus_acc8_loader_sample
+name=pretrain_5p_5m_512_128_4x_envdrop_3gpus_acc4_loader_sample
 
 args="--gpu_id 0,1,2
       --name ${name}
@@ -8,7 +8,7 @@ args="--gpu_id 0,1,2
       --num_workers 1
 
       --weight_decay 0.03
-      --gradient_accumulation_steps 8
+      --gradient_accumulation_steps 4
 
       --lxmert_pretrain 0
       --x_layers 4

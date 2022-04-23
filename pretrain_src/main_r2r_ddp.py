@@ -224,14 +224,14 @@ if __name__ == '__main__':
 
     loss_weight = {'mlm': 1.5,
                    'nap': 1.3,
-                   'nar': 1.3,
+                   'nar': 1.4,
                    'tom': 1.1,
                    'itm': 1.2}
-    sample_rate = {'mlm': 3,
+    sample_rate = {'mlm': 4,
                    'nap': 2,
-                   'nar': 2,
+                   'nar': 3,
                    'tom': 1,
-                   'itm': 1}
+                   'itm': 2}
 
     loader_list = []
     if 'mlm' in args.proxy:

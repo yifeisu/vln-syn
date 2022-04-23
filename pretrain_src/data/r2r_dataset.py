@@ -271,7 +271,7 @@ class NarDataset(Dataset):
             candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
         candidate_views = torch.from_numpy(np.vstack(candidate_views))
 
-        teacher_action = torch.tensor(item[['teacher_action']])
+        teacher_action = torch.tensor(item['teacher_action'])
         return instr_ids, instr_mask, candidate_views, teacher_action
 
 

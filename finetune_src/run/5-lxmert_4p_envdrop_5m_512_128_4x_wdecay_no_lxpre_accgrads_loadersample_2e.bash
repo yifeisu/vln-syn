@@ -6,7 +6,7 @@ args="--gpu_id 3
       --train auglistener
 
       --epoch 4
-      --batch_size 24
+      --batch_size 8
       --optim adamW
 
       --pretrain_path ../pretrain_src/snap/pretrain_4p_5m_512_128_4x_envdrop_3gpus_accgrads_loader_sample/1/bert/

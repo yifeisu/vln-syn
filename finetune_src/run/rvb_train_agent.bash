@@ -9,7 +9,7 @@ flag="--vlnbert prevalent
 
       --features imagenet
       --maxAction 15
-      --batchSize 24
+      --batchSize 8
       --feedback sample
       --lr 1e-5
       --iters 300000
@@ -22,4 +22,4 @@ flag="--vlnbert prevalent
       --dropout 0.5"
 
 mkdir -p snap/$name
-CUDA_VISIBLE_DEVICES=0 python r2r_src_rvb/train.py $flag --name $name
+CUDA_VISIBLE_DEVICES=3 python r2r_src_rvb/train.py $flag --name $name

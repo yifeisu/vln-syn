@@ -224,6 +224,77 @@ def nap_collate(inputs):
     return instr_ids, instr_mask, pad_candidate_views, candidate_mask, teacher_action
 
 
+class NarDataset(Dataset):
+    def __init__(self, json_data, features):
+        super(NarDataset, self).__init__()
+
+        self.image_feat = features
+        self.pad_token_id = 0
+
+        # split the each viewpoint
+        self.viewpoint_data = list()
+        for item in json_data:
+            for index, point in enumerate(item['path'][:-1]):
+                new_item = dict()
+                '''
+                new_item = {
+                'long_id': str,
+                "instr_ids": [int...], 
+                'cand_view_idex': [int...],
+                'cand_rela_angle': [[float, float]...],
+                'next_viewpointid': int}
+                '''
+                new_item['long_id'] = '%s_%s' % (point[0], point[1])
+                new_item['instr_ids'] = item['instr_ids']
+                new_item['cand_view_idex'] = item['cands_view_index'][index]
+                new_item['cand_rela_angle'] = item['cands_rela_angle'][index]
+                next_viewpointid = item['next_viewpointids'][index]
+                new_item['teacher_action'] = new_item['cand_rela_angle'][next_viewpointid]
+                self.viewpoint_data.append(new_item)
+
+    def __len__(self):
+        return len(self.viewpoint_data)
+
+    def __getitem__(self, index):
+        item = self.viewpoint_data[index]
+        # 1. prepare the instruction
+        instr = item['instr_ids']
+        instr_ids = torch.LongTensor(instr)
+        instr_mask = (instr_ids != self.pad_token_id).long()
+
+        # 2.prepare the candidate views of the random selected viewpoint in path
+        candidate_views = list()
+        _long_id = item['long_id']
+        for index, candidate in enumerate(item["cand_view_idex"]):
+            image_feat = self.image_feat[_long_id][candidate]
+            angle_feat = angle_feature(*item["cand_rela_angle"][index])
+            candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+        candidate_views = torch.from_numpy(np.vstack(candidate_views))
+
+        teacher_action = torch.tensor(item[['teacher_action']])
+        return instr_ids, instr_mask, candidate_views, teacher_action
+
+
+def nar_collate(inputs):
+    """
+    :param inputs: a list of tuple, [(instr_ids, instr_mask, candidate_views, teacher_action)], ...]
+    """
+    instr_ids, instr_mask, candidate_views, teacher_action = list(zip(*inputs))
+    instr_ids, instr_mask, teacher_action = torch.vstack(instr_ids), torch.vstack(instr_mask), torch.vstack(teacher_action)
+
+    # prepare the candidate views and mask, to same length
+    # candidate_views, a tuple of tensors, ( (candidate_len, feat_dim),... )
+    cand_leng = [candidate.shape[0] for candidate in candidate_views]
+    max_leng = max(cand_leng)
+    pad_candidate_views = torch.zeros([len(candidate_views), max_leng, candidate_views[0].shape[1]])
+    for i in range(len(candidate_views)):
+        for j in range(cand_leng[i]):
+            pad_candidate_views[i, j, :] = candidate_views[i][j]
+
+    candidate_mask = (length2mask(cand_leng) == 0).long()
+    return instr_ids, instr_mask, pad_candidate_views, candidate_mask, teacher_action
+
+
 class TomDataset(Dataset):
     def __init__(self, json_data, features):
         """

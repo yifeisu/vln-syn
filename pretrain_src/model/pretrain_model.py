@@ -31,6 +31,23 @@ class NextCandidatePrediction(nn.Module):
         return self.net(x)
 
 
+class NextCandidateRegression(nn.Module):
+    """
+    implement on the candidate embedding, choose the next candidate viewpoint
+    """
+
+    def __init__(self, hidden_size, dropout_rate):
+        super(NextCandidatePrediction, self).__init__()
+        self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size, eps=1e-12),
+                                 nn.Dropout(dropout_rate),
+                                 nn.Linear(hidden_size, 2))
+
+    def forward(self, x):
+        return self.net(x)
+
+
 class TrajOrderPrediction(nn.Module):
     """
     implement on the candidate embedding, choose the next candidate viewpoint
@@ -55,7 +72,9 @@ class InstruTrajPrediction(nn.Module):
 
     def __init__(self, hidden_size, dropout_rate):
         super(InstruTrajPrediction, self).__init__()
-        self.net = nn.Sequential(BertLayerNorm(hidden_size, eps=1e-12),
+        self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size, eps=1e-12),
                                  nn.Dropout(dropout_rate),
                                  nn.Linear(hidden_size, 2))
 
@@ -82,7 +101,9 @@ class VlnModelPreTraining(BertPreTrainedModel):
         if 'mlm' in config.pretrain_tasks:
             self.mlm_head = BertOnlyMLMHead(self.config)
         if 'nap' in config.pretrain_tasks:
-            self.next_action = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+            self.next_action_pre = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+        if 'nar' in config.pretrain_tasks:
+            self.next_action_reg = NextCandidateRegression(self.config.hidden_size, self.config.pred_head_dropout_prob)
         if 'tom' in config.pretrain_tasks:
             self.tom_head = TrajOrderPrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
         if 'itm' in config.pretrain_tasks:
@@ -127,10 +148,10 @@ class VlnModelPreTraining(BertPreTrainedModel):
                 image_feat[..., :-args.angle_feat_dim] = self.drop_env(image_feat[..., :-args.angle_feat_dim])
 
         if 'mlm' == task:
-            _, lang_output, _ = self.bert(input_ids=instr_ids,
-                                          attention_mask=instr_mask,
-                                          visual_feats=image_feat,
-                                          visual_attention_mask=image_mask)
+            pooled_output, lang_output, visual_output = self.bert(input_ids=instr_ids,
+                                                                  attention_mask=instr_mask,
+                                                                  visual_feats=image_feat,
+                                                                  visual_attention_mask=image_mask)
 
             # only compute masked tokens for better efficiency
             masked_output = _compute_masked_hidden(lang_output, instr_labels != -1)
@@ -139,23 +160,34 @@ class VlnModelPreTraining(BertPreTrainedModel):
             return prediction_scores
 
         elif 'nap' == task:
-            _, _, visual_output = self.bert(input_ids=instr_ids,
-                                            attention_mask=instr_mask,
-                                            visual_feats=image_feat,
-                                            visual_attention_mask=image_mask)
+            pooled_output, lang_output, visual_output = self.bert(input_ids=instr_ids,
+                                                                  attention_mask=instr_mask,
+                                                                  visual_feats=image_feat,
+                                                                  visual_attention_mask=image_mask)
 
             # combine text and visual to predict next action
-            prediction_scores = self.next_action(visual_output).squeeze(-1)
+            prediction_scores = self.next_action_pre(visual_output * lang_output[:, 0:1, :]).squeeze(-1)
+
+            return prediction_scores
+
+        elif 'nar' == task:
+            pooled_output, lang_output, visual_output = self.bert(input_ids=instr_ids,
+                                                                  attention_mask=instr_mask,
+                                                                  visual_feats=image_feat,
+                                                                  visual_attention_mask=image_mask)
+
+            # combine text and visual to predict next action
+            prediction_scores = self.next_action_reg(lang_output[:, 0, :])
 
             return prediction_scores
 
         elif 'tom' == task:
             pad_traj_views, pad_traj_index = image_feat
 
-            _, _, visual_output = self.bert(input_ids=instr_ids,
-                                            attention_mask=instr_mask,
-                                            visual_feats=pad_traj_views,
-                                            visual_attention_mask=image_mask)
+            pooled_output, lang_output, visual_output = self.bert(input_ids=instr_ids,
+                                                                  attention_mask=instr_mask,
+                                                                  visual_feats=pad_traj_views,
+                                                                  visual_attention_mask=image_mask)
 
             # only compute masked tokens for better efficiency
             # masked_output = _compute_masked_hidden(visual_output, pad_traj_index)
@@ -165,13 +197,13 @@ class VlnModelPreTraining(BertPreTrainedModel):
             return prediction_scores
 
         elif 'itm' == task:
-            pool_output, _, _ = self.bert(input_ids=instr_ids,
-                                          attention_mask=instr_mask,
-                                          visual_feats=image_feat,
-                                          visual_attention_mask=image_mask)
+            pooled_output, lang_output, visual_output = self.bert(input_ids=instr_ids,
+                                                                  attention_mask=instr_mask,
+                                                                  visual_feats=image_feat,
+                                                                  visual_attention_mask=image_mask)
 
             # only compute masked tokens for better efficiency
-            prediction_scores = self.itm_head(pool_output)
+            prediction_scores = self.itm_head(lang_output[:, 0, :])
 
             return prediction_scores
 

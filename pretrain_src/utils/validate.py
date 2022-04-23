@@ -11,6 +11,8 @@ def validate(_model, _task, val_dataloader, setname=''):
         val_log = validate_mlm(_model, val_dataloader)
     elif _task == 'nap':
         val_log = validate_nap(_model, val_dataloader)
+    elif _task == 'nar':
+        val_log = validate_nar(_model, val_dataloader)
     elif _task == 'tom':
         val_log = validate_tom(_model, val_dataloader)
     elif _task == 'itm':
@@ -87,6 +89,37 @@ def validate_nap(_model, val_loader):
                'tok_per_s': n_data / tot_time}
 
     LOGGER.info(f"Finished nap validation in {int(tot_time)} seconds, acc is: {acc * 100:.2f}")
+    return val_log
+
+
+@torch.no_grad()
+def validate_nar(_model, val_loader):
+    val_loss = n_correct = n_data = 0
+
+    st = time.time()
+    for i, data in enumerate(val_loader):
+        with torch.no_grad():
+            data = [item.cuda() for item in data]
+
+        instr_ids, instr_mask, candidate_views, candidate_mask, teacher_action = data
+        scores = _model('nar',
+                        instr_ids=instr_ids,
+                        instr_mask=instr_mask,
+                        image_feat=candidate_views,
+                        image_mask=candidate_mask,
+                        teacher_action=teacher_action)
+
+        loss = F.mse_loss(scores, teacher_action, reduction='sum')
+        val_loss += loss.item()
+        n_data += scores.size(0)
+
+    tot_time = time.time() - st
+    val_loss /= n_data
+
+    val_log = {'loss': val_loss,
+               'tok_per_s': n_data / tot_time}
+
+    LOGGER.info(f"Finished nap validation in {int(tot_time)} seconds, val_loss is: {val_loss * 100:.2f}")
     return val_log
 
 

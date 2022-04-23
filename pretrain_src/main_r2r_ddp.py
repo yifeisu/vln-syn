@@ -15,7 +15,12 @@ import torch.distributed as dist
 
 from transformers import LxmertConfig
 
-from data.r2r_dataset import read_img_features, MlmDataset, mlm_collate, NapDataset, nap_collate, TomDataset, tom_collate, ItmDataset, itm_collate
+from data.r2r_dataset import read_img_features, \
+    MlmDataset, mlm_collate, \
+    NapDataset, nap_collate, \
+    TomDataset, tom_collate, \
+    ItmDataset, itm_collate, \
+    NarDataset, nar_collate
 from model.pretrain_model import VlnModelPreTraining
 from optim.misc import build_optimizer
 from optim.sched import get_lr_sched
@@ -109,75 +114,99 @@ if __name__ == '__main__':
 
     LOGGER.info(f"Finish loading the json data.")
 
-    # 1.mlm train dataset
-    train_mlm_dataset = MlmDataset(train_json_data, image_feat)
-    train_mlm_sampler = DistributedSampler(train_mlm_dataset)
-    train_mlm_dataloader = DataLoader(train_mlm_dataset,
-                                      batch_size=args.batchSize,
-                                      num_workers=args.num_workers,
-                                      collate_fn=mlm_collate,
-                                      sampler=train_mlm_sampler,
-                                      pin_memory=True,
-                                      drop_last=True)
-    # 2.nap train dateset
-    train_nap_dataset = NapDataset(train_json_data, image_feat)
-    train_nap_sampler = DistributedSampler(train_nap_dataset)
-    train_nap_dataloader = DataLoader(train_nap_dataset,
-                                      batch_size=args.batchSize,
-                                      num_workers=args.num_workers,
-                                      collate_fn=nap_collate,
-                                      sampler=train_nap_sampler,
-                                      pin_memory=True,
-                                      drop_last=True)
+    if 'mlm' in args.proxy:
+        # 1.mlm train dataset
+        train_mlm_dataset = MlmDataset(train_json_data, image_feat)
+        train_mlm_sampler = DistributedSampler(train_mlm_dataset)
+        train_mlm_dataloader = DataLoader(train_mlm_dataset,
+                                          batch_size=args.batchSize,
+                                          num_workers=args.num_workers,
+                                          collate_fn=mlm_collate,
+                                          sampler=train_mlm_sampler,
+                                          pin_memory=True,
+                                          drop_last=True)
 
-    # 3.tom train dateset
-    train_tom_dataset = TomDataset(train_json_data, image_feat)
-    train_tom_sampler = DistributedSampler(train_tom_dataset)
-    train_tom_dataloader = DataLoader(train_tom_dataset,
-                                      batch_size=args.batchSize,
-                                      num_workers=args.num_workers,
-                                      collate_fn=tom_collate,
-                                      sampler=train_tom_sampler,
-                                      pin_memory=True,
-                                      drop_last=True)
+        # 1.mlm val dataset
+        val_mlm_dataset = MlmDataset(val_json_data, image_feat)
+        val_mlm_dataloader = DataLoader(val_mlm_dataset,
+                                        batch_size=args.batchSize,
+                                        collate_fn=mlm_collate,
+                                        drop_last=True)
 
-    # 4.itm train dateset
-    train_itm_dataset = ItmDataset(train_json_data, image_feat)
-    train_itm_sampler = DistributedSampler(train_itm_dataset)
-    train_itm_dataloader = DataLoader(train_itm_dataset,
-                                      batch_size=args.batchSize,
-                                      num_workers=args.num_workers,
-                                      collate_fn=itm_collate,
-                                      sampler=train_itm_sampler,
-                                      pin_memory=True,
-                                      drop_last=True)
+    if 'nap' in args.proxy:
+        # 2.nap train dateset
+        train_nap_dataset = NapDataset(train_json_data, image_feat)
+        train_nap_sampler = DistributedSampler(train_nap_dataset)
+        train_nap_dataloader = DataLoader(train_nap_dataset,
+                                          batch_size=args.batchSize,
+                                          num_workers=args.num_workers,
+                                          collate_fn=nap_collate,
+                                          sampler=train_nap_sampler,
+                                          pin_memory=True,
+                                          drop_last=True)
+        # 2.nap val dateset
+        val_nap_dataset = NapDataset(val_json_data, image_feat)
+        val_nap_dataloader = DataLoader(val_nap_dataset,
+                                        batch_size=args.batchSize,
+                                        collate_fn=nap_collate,
+                                        drop_last=True)
 
-    # 1.mlm val dataset
-    val_mlm_dataset = MlmDataset(val_json_data, image_feat)
-    val_mlm_dataloader = DataLoader(val_mlm_dataset,
-                                    batch_size=args.batchSize,
-                                    collate_fn=mlm_collate,
-                                    drop_last=True)
-    # 2.nap val dateset
-    val_nap_dataset = NapDataset(val_json_data, image_feat)
-    val_nap_dataloader = DataLoader(val_nap_dataset,
-                                    batch_size=args.batchSize,
-                                    collate_fn=nap_collate,
-                                    drop_last=True)
+    if 'tom' in args.proxy:
+        # 3.tom train dateset
+        train_tom_dataset = TomDataset(train_json_data, image_feat)
+        train_tom_sampler = DistributedSampler(train_tom_dataset)
+        train_tom_dataloader = DataLoader(train_tom_dataset,
+                                          batch_size=args.batchSize,
+                                          num_workers=args.num_workers,
+                                          collate_fn=tom_collate,
+                                          sampler=train_tom_sampler,
+                                          pin_memory=True,
+                                          drop_last=True)
 
-    # 3.tom val dateset
-    val_tom_dataset = TomDataset(val_json_data, image_feat)
-    val_tom_dataloader = DataLoader(val_tom_dataset,
-                                    batch_size=args.batchSize,
-                                    collate_fn=tom_collate,
-                                    drop_last=True)
+        # 3.tom val dateset
+        val_tom_dataset = TomDataset(val_json_data, image_feat)
+        val_tom_dataloader = DataLoader(val_tom_dataset,
+                                        batch_size=args.batchSize,
+                                        collate_fn=tom_collate,
+                                        drop_last=True)
 
-    # 4.itm val dateset
-    val_itm_dataset = ItmDataset(val_json_data, image_feat)
-    val_itm_dataloader = DataLoader(val_itm_dataset,
-                                    batch_size=args.batchSize,
-                                    collate_fn=itm_collate,
-                                    drop_last=True)
+    if 'itm' in args.proxy:
+        # 4.itm train dateset
+        train_itm_dataset = ItmDataset(train_json_data, image_feat)
+        train_itm_sampler = DistributedSampler(train_itm_dataset)
+        train_itm_dataloader = DataLoader(train_itm_dataset,
+                                          batch_size=args.batchSize,
+                                          num_workers=args.num_workers,
+                                          collate_fn=itm_collate,
+                                          sampler=train_itm_sampler,
+                                          pin_memory=True,
+                                          drop_last=True)
+
+        # 4.itm val dateset
+        val_itm_dataset = ItmDataset(val_json_data, image_feat)
+        val_itm_dataloader = DataLoader(val_itm_dataset,
+                                        batch_size=args.batchSize,
+                                        collate_fn=itm_collate,
+                                        drop_last=True)
+
+    if 'nar' in args.proxy:
+        # 5.nar train dateset
+        train_nar_dataset = NarDataset(train_json_data, image_feat)
+        train_nar_sampler = DistributedSampler(train_nar_dataset)
+        train_nar_dataloader = DataLoader(train_nar_dataset,
+                                          batch_size=args.batchSize,
+                                          num_workers=args.num_workers,
+                                          collate_fn=nar_collate,
+                                          sampler=train_nar_sampler,
+                                          pin_memory=True,
+                                          drop_last=True)
+
+        # 5.nar val dateset
+        val_nar_dataset = NarDataset(val_json_data, image_feat)
+        val_nar_dataloader = DataLoader(val_nar_dataset,
+                                        batch_size=args.batchSize,
+                                        collate_fn=nar_collate,
+                                        drop_last=True)
 
     LOGGER.info(f"Finish creating all dataset and dataloader, train on {len(train_nap_dataloader.sampler)} items, validate on {len(val_nap_dataset)} items")
 
@@ -189,18 +218,32 @@ if __name__ == '__main__':
     nap_loss_fun = torch.nn.CrossEntropyLoss()
     tom_loss_fun = torch.nn.CrossEntropyLoss()
     itm_loss_fun = torch.nn.CrossEntropyLoss()
+    nar_loss_fun = torch.nn.MSELoss()
 
     optimizer = build_optimizer(model, args)
 
     loss_weight = {'mlm': 1.5,
                    'nap': 1.3,
+                   'nar': 1.3,
                    'tom': 1.1,
                    'itm': 1.2}
-    sample_rate = {'mlm': 4,
+    sample_rate = {'mlm': 3,
                    'nap': 2,
+                   'nar': 2,
                    'tom': 1,
-                   'itm': 2}
-    loader_list = ['mlm']*sample_rate['mlm'] + ['nap']*sample_rate['nap'] + ['tom']*sample_rate['tom'] + ['itm']*sample_rate['itm']
+                   'itm': 1}
+
+    loader_list = ''
+    if 'mlm' in args.proxy:
+        loader_list += ['mlm']*sample_rate['mlm']
+    if 'nap' in args.proxy:
+        loader_list += ['nap']*sample_rate['nap']
+    if 'tom' in args.proxy:
+        loader_list += ['tom']*sample_rate['tom']
+    if 'itm' in args.proxy:
+        loader_list += ['itm']*sample_rate['itm']
+    if 'nar' in args.proxy:
+        loader_list += ['nar']*sample_rate['nar']
     LOGGER.info(loader_list)
     # ------------------------------------------- #
     # training and validate process
@@ -212,7 +255,9 @@ if __name__ == '__main__':
                   'mlm_acc': 0.0,
                   'nap_acc': 0.0,
                   'tom_acc': 0.0,
-                  'itm_acc': 0.0}
+                  'itm_acc': 0.0,
+                  'nar_acc': 0.0,
+                  }
     lr_this_step = 0
     global_step = 0
     for epoch in range(args.epoch):
@@ -220,11 +265,13 @@ if __name__ == '__main__':
         train_nap_sampler.set_epoch(epoch)
         train_tom_sampler.set_epoch(epoch)
         train_itm_sampler.set_epoch(epoch)
+        train_nar_sampler.set_epoch(epoch)
         # obtain the dataloader iter
         train_mlm_iter = iter(train_mlm_dataloader)
         train_nap_iter = iter(train_nap_dataloader)
         train_tom_iter = iter(train_tom_dataloader)
         train_itm_iter = iter(train_itm_dataloader)
+        train_nar_iter = iter(train_nar_dataloader)
 
         # ------------------------------------------- #
         # training process
@@ -356,6 +403,30 @@ if __name__ == '__main__':
                 nap_loss = nap_loss * loss_weight['nap'] / args.gradient_accumulation_steps
                 nap_loss.backward()
 
+            # 5.train nap proxy task
+            if 'nar' == task:
+                try:
+                    data = next(train_nar_iter)
+                except StopIteration as e:
+                    print('\n')
+                    break
+
+                with torch.no_grad():
+                    data = [item.cuda(non_blocking=True) for item in data]
+
+                instr_ids, instr_mask, candidate_views, candidate_mask, teacher_action = data
+
+                nar_preds = model('nar',
+                                  instr_ids=instr_ids,
+                                  instr_mask=instr_mask,
+                                  image_feat=candidate_views,
+                                  image_mask=candidate_mask,
+                                  teacher_action=teacher_action)
+
+                nar_loss = nar_loss_fun(nar_preds, teacher_action)
+                nar_loss = nar_loss * loss_weight['nar'] / args.gradient_accumulation_steps
+                nar_loss.backward()
+
             # 3. update the parameters
             if (index + 1) % args.gradient_accumulation_steps == 0:
                 optim_step += 1
@@ -378,6 +449,8 @@ if __name__ == '__main__':
                     loss_str += 'tom loss %.4f,' % tom_loss.item()
                 if 'nap' == task:
                     loss_str += 'nap loss %.4f,' % nap_loss.item()
+                if 'nar' == task:
+                    loss_str += 'nar loss %.4f,' % nar_loss.item()
                 if 'itm' == task:
                     loss_str += 'itm loss %.4f,' % itm_loss.item()
 
@@ -392,6 +465,8 @@ if __name__ == '__main__':
                     wandb.log({"tom_loss": tom_loss.item()}, step=global_step)
                 if 'nap' == task:
                     wandb.log({"nap_loss": nap_loss.item()}, step=global_step)
+                if 'nar' == task:
+                    wandb.log({"nar_loss": nar_loss.item()}, step=global_step)
                 if 'itm' == task:
                     wandb.log({"itm_loss": itm_loss.item()}, step=global_step)
 
@@ -401,7 +476,7 @@ if __name__ == '__main__':
             val_iter = len(train_nap_dataloader.sampler) // args.batchSize // 4
             if args.local_rank == 0:
                 if (index % val_iter) == 0:
-                    now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
+                    now_model = {'score': 0.0, 'mlm_acc': 0.0, 'nap_acc': 0.0, 'nar_acc': 0.0, 'tom_acc': 0.0, 'itm_acc': 0.0}
                     if 'mlm' in args.proxy:
                         mlm_val = validate(model, 'mlm', val_mlm_dataloader)
                         wandb.log({"mlm_acc": mlm_val['acc']}, step=global_step)
@@ -413,6 +488,10 @@ if __name__ == '__main__':
                         wandb.log({"nap_acc": nap_val['acc']}, step=global_step)
                         now_model['score'] += nap_val['acc'] * 0.5
                         now_model['nap_acc'] = nap_val['acc']
+
+                    if 'nar' in args.proxy:
+                        nar_val = validate(model, 'nar', val_nar_dataloader)
+                        wandb.log({"nar_val_loss": nar_val['loss']}, step=global_step)
 
                     if 'tom' in args.proxy:
                         tom_val = validate(model, 'tom', val_tom_dataloader)
@@ -448,6 +527,8 @@ if __name__ == '__main__':
                 validate(model, 'mlm', val_mlm_dataloader)
             if 'nap' in args.proxy:
                 validate(model, 'nap', val_nap_dataloader)
+            if 'nar' in args.proxy:
+                validate(model, 'nar', val_nar_dataloader)
             if 'tom' in args.proxy:
                 validate(model, 'tom', val_tom_dataloader)
             if 'itm' in args.proxy:

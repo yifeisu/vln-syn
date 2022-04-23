@@ -13,3 +13,7 @@ pretrain_src/run/__pycache__/
 finetune_src/features.zip
 *.tsv
 *.zip
+connectivity/
+test_model.py
+test_teacher_action.py
+test_optim.py

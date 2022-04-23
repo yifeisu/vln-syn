@@ -12,7 +12,7 @@ args="--gpu_id 0,1,2
 
       --lxmert_pretrain 0
       --x_layers 4
-      --proxy mlm,nap,itm,tom, nar
+      --proxy mlm,nap,itm,tom,nar
 
       --feature clip_vit
       --img_feat_dim 512

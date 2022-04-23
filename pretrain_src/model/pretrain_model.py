@@ -37,7 +37,7 @@ class NextCandidateRegression(nn.Module):
     """
 
     def __init__(self, hidden_size, dropout_rate):
-        super(NextCandidatePrediction, self).__init__()
+        super(NextCandidateRegression, self).__init__()
         self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
                                  nn.ReLU(),
                                  BertLayerNorm(hidden_size, eps=1e-12),

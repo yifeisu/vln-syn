@@ -98,15 +98,15 @@ class VlnModelPreTraining(BertPreTrainedModel):
         self.config = config
 
         # proxy head
-        if 'mlm' in config.pretrain_tasks:
+        if 'mlm' in args.proxy:
             self.mlm_head = BertOnlyMLMHead(self.config)
-        if 'nap' in config.pretrain_tasks:
+        if 'nap' in args.proxy:
             self.next_action_pre = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
-        if 'nar' in config.pretrain_tasks:
+        if 'nar' in args.proxy:
             self.next_action_reg = NextCandidateRegression(self.config.hidden_size, self.config.pred_head_dropout_prob)
-        if 'tom' in config.pretrain_tasks:
+        if 'tom' in args.proxy:
             self.tom_head = TrajOrderPrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
-        if 'itm' in config.pretrain_tasks:
+        if 'itm' in args.proxy:
             self.itm_head = InstruTrajPrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
 
         # enviroument dropout
@@ -128,7 +128,7 @@ class VlnModelPreTraining(BertPreTrainedModel):
         self.tie_weights()
 
     def tie_weights(self):
-        if 'mlm' in self.config.pretrain_tasks:
+        if 'mlm' in args.proxy:
             self._tie_or_clone_weights(self.mlm_head.predictions.decoder,
                                        self.bert.embeddings.word_embeddings)
 

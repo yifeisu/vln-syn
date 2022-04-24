@@ -80,7 +80,6 @@ if __name__ == '__main__':
     config.visual_pos_dim = 4
     config.x_layers = args.x_layers
     config.r_layers = 0
-    config.pretrain_tasks = args.proxy
     config.pred_head_dropout_prob = 0.2
 
     model = VlnModelPreTraining(config=config).cuda()
@@ -227,28 +226,11 @@ if __name__ == '__main__':
                    'nar': 1.4,
                    'tom': 1.1,
                    'itm': 1.2}
-    sample_rate = {'mlm': 4,
-                   'nap': 2,
-                   'nar': 3,
-                   'tom': 1,
-                   'itm': 2}
 
-    loader_list = []
-    if 'mlm' in args.proxy:
-        loader_list += ['mlm']*sample_rate['mlm']
-    if 'nap' in args.proxy:
-        loader_list += ['nap']*sample_rate['nap']
-    if 'tom' in args.proxy:
-        loader_list += ['tom']*sample_rate['tom']
-    if 'itm' in args.proxy:
-        loader_list += ['itm']*sample_rate['itm']
-    if 'nar' in args.proxy:
-        loader_list += ['nar']*sample_rate['nar']
-    LOGGER.info(loader_list)
     # ------------------------------------------- #
     # training and validate process
     # ------------------------------------------- #
-    LOGGER.info(f"********** Running training with {args.local_rank} GPU, total epoch {args.epoch}. **********")
+    LOGGER.info(f"********** Running training with {args.local_rank} GPU, total epoch {args.epoch}, in eager train mode. **********")
     optim_step = 10
     optimizer.zero_grad()
     best_model = {'score': 0.0,
@@ -297,12 +279,9 @@ if __name__ == '__main__':
 
             global_step += 1
             index += 1
-            if index >= (len(train_nap_dataloader.sampler) // args.batchSize):
-                break
 
-            task = random.choice(loader_list)
             # 1.train mlm proxy task
-            if 'mlm' == task:
+            if 'mlm' in args.proxy:
                 try:
                     data = next(train_mlm_iter)
                 except StopIteration as e:
@@ -324,11 +303,11 @@ if __name__ == '__main__':
 
                 mlm_loss = mlm_loss_fun(mlm_preds,
                                         instr_labels[instr_labels != -1])
-                mlm_loss = mlm_loss * loss_weight['mlm'] / args.gradient_accumulation_steps
+                mlm_loss = mlm_loss * loss_weight['mlm'] / 5
                 mlm_loss.backward()
 
             # 2.train tom proxy task
-            if 'tom' == task:
+            if 'tom' in args.proxy:
                 try:
                     data = next(train_tom_iter)
                 except StopIteration as e:
@@ -350,11 +329,11 @@ if __name__ == '__main__':
 
                 tom_loss = tom_loss_fun(tom_pred,
                                         traj_labels)
-                tom_loss = tom_loss * loss_weight['tom'] / args.gradient_accumulation_steps
+                tom_loss = tom_loss * loss_weight['tom'] / 5
                 tom_loss.backward()
 
             # 3.train itm proxy task
-            if 'itm' == task:
+            if 'itm' in args.proxy:
                 try:
                     data = next(train_itm_iter)
                 except StopIteration as e:
@@ -376,11 +355,11 @@ if __name__ == '__main__':
 
                 itm_loss = itm_loss_fun(itm_pred,
                                         traj_labels)
-                itm_loss = itm_loss * loss_weight['itm'] / args.gradient_accumulation_steps
+                itm_loss = itm_loss * loss_weight['itm'] / 5
                 itm_loss.backward()
 
             # 4.train nap proxy task
-            if 'nap' == task:
+            if 'nap' in args.proxy:
                 try:
                     data = next(train_nap_iter)
                 except StopIteration as e:
@@ -400,11 +379,11 @@ if __name__ == '__main__':
                                   teacher_action=teacher_action)
 
                 nap_loss = nap_loss_fun(nap_preds, teacher_action)
-                nap_loss = nap_loss * loss_weight['nap'] / args.gradient_accumulation_steps
+                nap_loss = nap_loss * loss_weight['nap'] / 5
                 nap_loss.backward()
 
             # 5.train nap proxy task
-            if 'nar' == task:
+            if 'nar' in args.proxy:
                 try:
                     data = next(train_nar_iter)
                 except StopIteration as e:
@@ -424,7 +403,7 @@ if __name__ == '__main__':
                                   teacher_action=teacher_action)
 
                 nar_loss = nar_loss_fun(nar_preds, teacher_action)
-                nar_loss = nar_loss * loss_weight['nar'] / args.gradient_accumulation_steps
+                nar_loss = nar_loss * loss_weight['nar'] / 5
                 nar_loss.backward()
 
             # 3. update the parameters
@@ -443,15 +422,15 @@ if __name__ == '__main__':
             # 4. print the training progress
             if index < 15:
                 loss_str = ''
-                if 'mlm' == task:
+                if 'mlm' in args.proxy:
                     loss_str += 'mlm loss %.4f,' % mlm_loss.item()
-                if 'tom' == task:
+                if 'tom' in args.proxy:
                     loss_str += 'tom loss %.4f,' % tom_loss.item()
-                if 'nap' == task:
+                if 'nap' in args.proxy:
                     loss_str += 'nap loss %.4f,' % nap_loss.item()
-                if 'nar' == task:
+                if 'nar' in args.proxy:
                     loss_str += 'nar loss %.4f,' % nar_loss.item()
-                if 'itm' == task:
+                if 'itm' in args.proxy:
                     loss_str += 'itm loss %.4f,' % itm_loss.item()
 
                 loss_str += 'lr is  %.4f, device id: %s.' % (lr_this_step, args.local_rank)
@@ -459,15 +438,15 @@ if __name__ == '__main__':
 
             # log with wandb
             if args.local_rank == 0 and global_step > 1:
-                if 'mlm' == task:
+                if 'mlm' in args.proxy:
                     wandb.log({"mlm_loss": mlm_loss.item()}, step=global_step)
-                if 'tom' == task:
+                if 'tom' in args.proxy:
                     wandb.log({"tom_loss": tom_loss.item()}, step=global_step)
-                if 'nap' == task:
+                if 'nap' in args.proxyk:
                     wandb.log({"nap_loss": nap_loss.item()}, step=global_step)
-                if 'nar' == task:
+                if 'nar' in args.proxy:
                     wandb.log({"nar_loss": nar_loss.item()}, step=global_step)
-                if 'itm' == task:
+                if 'itm' in args.proxy:
                     wandb.log({"itm_loss": itm_loss.item()}, step=global_step)
 
                 wandb.log({"lr": lr_this_step}, step=global_step)

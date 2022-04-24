@@ -25,7 +25,7 @@ def load_nav_graphs(_scans):
 
     graphs = {}
     for scan in _scans:
-        with open('E:/4-MyResearch_Task/0-vln/3-vln_space/finetune_src/connectivity/%s_connectivity.json' % scan) as f:
+        with open('connectivity/%s_connectivity.json' % scan) as f:
             G = nx.Graph()
             positions = {}
             data = json.load(f)
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------------------- #
     # load the connectivty and build the graph
     # -------------------------------------------------------------------------------------- #
-    with open(r"E:\4-MyResearch_Task\0-vln\3-vln_space\finetune_src\connectivity\scans.txt", 'r') as f:
+    with open(r"connectivity\scans.txt", 'r') as f:
         scans = f.readlines()
     scans = [scan.strip() for scan in scans]
 
@@ -150,7 +150,7 @@ if __name__ == '__main__':
         cands_rela_angle = list()
         next_viewpointids = list()
         next_views_longid = list()
-        for point in new_item['path'][:-1]:
+        for t, point in enumerate(new_item['path']):
             # a list of dicts, each dict records a information of candidate
             candidates = make_candidate(sim, point[0], point[1], point[2])
             cands_view_index.append([candidate['pointId'] for candidate in candidates])
@@ -158,7 +158,10 @@ if __name__ == '__main__':
 
             next_views_longid = [candidate['viewpointId'] for candidate in candidates]
             next_view = _shortest_path_action(point[0], point[1], new_item['path'][-1][1], paths)
-            next_viewpointids.append(next_views_longid.index(next_view))
+            if point[1] != new_item['path'][-1][1]:
+                next_viewpointids.append(next_views_longid.index(next_view))
+            else:
+                next_viewpointids.append(-1)
 
         # 1. random select a viewpoint in path and create the candidate views
         # random_viewpoint = random.choice(new_item['path'][:-1])

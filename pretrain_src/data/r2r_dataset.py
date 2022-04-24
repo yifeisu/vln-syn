@@ -164,7 +164,7 @@ class NapDataset(Dataset):
         # split the each viewpoint
         self.viewpoint_data = list()
         for item in json_data:
-            for index, point in enumerate(item['path'][:-1]):
+            for index, point in enumerate(item['path']):
                 new_item = dict()
                 '''
                 new_item = {
@@ -174,6 +174,7 @@ class NapDataset(Dataset):
                 'cand_rela_angle': [[float, float]...],
                 'next_viewpointid': int}
                 '''
+
                 new_item['long_id'] = '%s_%s' % (point[0], point[1])
                 new_item['instr_ids'] = item['instr_ids']
                 new_item['cand_view_idex'] = item['cands_view_index'][index]
@@ -191,16 +192,26 @@ class NapDataset(Dataset):
         instr_ids = torch.LongTensor(instr)
         instr_mask = (instr_ids != self.pad_token_id).long()
 
-        # 2.prepare the candidate views of the random selected viewpoint in path
+        # 2.prepare the candidate views of each point
         candidate_views = list()
         _long_id = item['long_id']
         for index, candidate in enumerate(item["cand_view_idex"]):
             image_feat = self.image_feat[_long_id][candidate]
             angle_feat = angle_feature(*item["cand_rela_angle"][index])
             candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+
+        # 3.pad the stop 'views'
+        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
+        candidate_views.append(pad_stop_cand)
+
         candidate_views = torch.from_numpy(np.vstack(candidate_views))
 
-        teacher_action = torch.tensor([item['next_viewpointid']])
+        # 4.prepare the label
+        if item['next_viewpointid'] != -1:
+            teacher_action = torch.tensor([item['next_viewpointid']])
+        else:
+            teacher_action = torch.tensor([candidate_views.shape[0]-1])
+
         return instr_ids, instr_mask, candidate_views, teacher_action
 
 
@@ -244,12 +255,17 @@ class NarDataset(Dataset):
                 'cand_rela_angle': [[float, float]...],
                 'next_viewpointid': int}
                 '''
+
                 new_item['long_id'] = '%s_%s' % (point[0], point[1])
                 new_item['instr_ids'] = item['instr_ids']
                 new_item['cand_view_idex'] = item['cands_view_index'][index]
                 new_item['cand_rela_angle'] = item['cands_rela_angle'][index]
                 next_viewpointid = item['next_viewpointids'][index]
-                new_item['teacher_action'] = new_item['cand_rela_angle'][next_viewpointid]
+                if next_viewpointid != -1:
+                    new_item['teacher_action'] = new_item['cand_rela_angle'][next_viewpointid]
+                else:
+                    new_item['teacher_action'] = [0, 0]
+
                 self.viewpoint_data.append(new_item)
 
     def __len__(self):
@@ -269,8 +285,14 @@ class NarDataset(Dataset):
             image_feat = self.image_feat[_long_id][candidate]
             angle_feat = angle_feature(*item["cand_rela_angle"][index])
             candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+
+        # 3.pad the stop 'views'
+        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
+        candidate_views.append(pad_stop_cand)
+
         candidate_views = torch.from_numpy(np.vstack(candidate_views))
 
+        # 4.prepare the label
         teacher_action = torch.tensor(item['teacher_action'])
         return instr_ids, instr_mask, candidate_views, teacher_action
 

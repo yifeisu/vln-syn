@@ -8,7 +8,7 @@ args="--gpu_id 0,1,2
       --num_workers 1
 
       --weight_decay 0.03
-      --gradient_accumulation_steps 8
+      --gradient_accumulation_steps 4
 
       --lxmert_pretrain 0
       --x_layers 4

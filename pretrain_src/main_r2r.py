@@ -73,7 +73,6 @@ if __name__ == '__main__':
     config = LxmertConfig.from_pretrained('unc-nlp/lxmert-base-uncased')
     config.img_feature_dim = 640
     config.visual_pos_dim = 4
-    config.pretrain_tasks = ['mlm', 'nap', 'tom']
     config.pred_head_dropout_prob = 0.2
 
     model = VlnModelPreTraining(config=config).to(device)
@@ -167,7 +166,7 @@ if __name__ == '__main__':
     # ------------------------------------------- #
     LOGGER.info(f"********** Running training with {n_gpu} GPUs, total epoch {args.epoch}. **********")
     optim_step = 10
-    task = config.pretrain_tasks
+    task = args.proxy
     optimizer.zero_grad()
     best_model = {'mlm_acc': 0.0,
                   'nap_acc': 0.0,

@@ -122,7 +122,7 @@ if __name__ == '__main__':
                                           num_workers=args.num_workers,
                                           collate_fn=mlm_collate,
                                           sampler=train_mlm_sampler,
-                                          pin_memory=True,
+                                          pin_memory=False,
                                           drop_last=True)
 
         # 1.mlm val dataset
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                                           num_workers=args.num_workers,
                                           collate_fn=nap_collate,
                                           sampler=train_nap_sampler,
-                                          pin_memory=True,
+                                          pin_memory=False,
                                           drop_last=True)
         # 2.nap val dateset
         val_nap_dataset = NapDataset(val_json_data, image_feat)
@@ -159,7 +159,7 @@ if __name__ == '__main__':
                                           num_workers=args.num_workers,
                                           collate_fn=tom_collate,
                                           sampler=train_tom_sampler,
-                                          pin_memory=True,
+                                          pin_memory=False,
                                           drop_last=True)
 
         # 3.tom val dateset
@@ -178,7 +178,7 @@ if __name__ == '__main__':
                                           num_workers=args.num_workers,
                                           collate_fn=itm_collate,
                                           sampler=train_itm_sampler,
-                                          pin_memory=True,
+                                          pin_memory=False,
                                           drop_last=True)
 
         # 4.itm val dateset
@@ -197,7 +197,7 @@ if __name__ == '__main__':
                                           num_workers=args.num_workers,
                                           collate_fn=nar_collate,
                                           sampler=train_nar_sampler,
-                                          pin_memory=True,
+                                          pin_memory=False,
                                           drop_last=True)
 
         # 5.nar val dateset
@@ -224,7 +224,7 @@ if __name__ == '__main__':
 
     loss_weight = {'mlm': 1.5,
                    'nap': 1.3,
-                   'nar': 1.4,
+                   'nar': 1.5,
                    'tom': 1.1,
                    'itm': 1.2}
 

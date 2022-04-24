@@ -443,7 +443,7 @@ if __name__ == '__main__':
                     wandb.log({"mlm_loss": mlm_loss.item()}, step=global_step)
                 if 'tom' in args.proxy:
                     wandb.log({"tom_loss": tom_loss.item()}, step=global_step)
-                if 'nap' in args.proxyk:
+                if 'nap' in args.proxy:
                     wandb.log({"nap_loss": nap_loss.item()}, step=global_step)
                 if 'nar' in args.proxy:
                     wandb.log({"nar_loss": nar_loss.item()}, step=global_step)

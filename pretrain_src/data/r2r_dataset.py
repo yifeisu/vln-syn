@@ -115,7 +115,7 @@ class MlmDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        item = self.data[index]
+        item = self.data[index].copy()
         # 1. mask the instruction
         instr = item['instr_ids']
         instr_ids, instr_labels = random_word(instr, self.vocab_range, self.mask_token_id, self.tok.pad_token_id)
@@ -186,7 +186,7 @@ class NapDataset(Dataset):
         return len(self.viewpoint_data)
 
     def __getitem__(self, index):
-        item = self.viewpoint_data[index]
+        item = self.viewpoint_data[index].copy()
         # 1. prepare the instruction
         instr = item['instr_ids']
         instr_ids = torch.LongTensor(instr)
@@ -272,7 +272,7 @@ class NarDataset(Dataset):
         return len(self.viewpoint_data)
 
     def __getitem__(self, index):
-        item = self.viewpoint_data[index]
+        item = self.viewpoint_data[index].copy()
         # 1. prepare the instruction
         instr = item['instr_ids']
         instr_ids = torch.LongTensor(instr)
@@ -334,7 +334,7 @@ class TomDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        item = self.data[index]
+        item = self.data[index].copy()
         # 1. mask the instruction
         instr = item['instr_ids']
         instr_ids = torch.LongTensor(instr)
@@ -413,7 +413,7 @@ class ItmDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        item = self.data[index]
+        item = self.data[index].copy()
 
         scan = item["traj_scan"]
         trajs = self.meta_data[scan].copy()  # instr_trajs: a list of tuple [(instr, traj)...]

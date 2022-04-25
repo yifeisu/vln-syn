@@ -256,7 +256,7 @@ class NapDataset(Dataset):
         # 4.prepare the label
         if item['next_viewpointid'] != -1:
             if args.pano:
-                teacher_action = torch.tensor(item['cand_view_idex'][item['next_viewpointid']])
+                teacher_action = torch.tensor([item['cand_view_idex'][item['next_viewpointid']]])
             else:
                 teacher_action = torch.tensor([item['next_viewpointid']])
         else:

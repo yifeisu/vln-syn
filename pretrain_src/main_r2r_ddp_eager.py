@@ -364,7 +364,7 @@ if __name__ == '__main__':
                 try:
                     data = next(train_nap_iter)
                 except StopIteration as e:
-                    print('\n')
+                    print('nap out.\n')
                     break
 
                 with torch.no_grad():
@@ -388,7 +388,7 @@ if __name__ == '__main__':
                 try:
                     data = next(train_nar_iter)
                 except StopIteration as e:
-                    print('\n')
+                    print('nar out.\n')
                     break
 
                 with torch.no_grad():

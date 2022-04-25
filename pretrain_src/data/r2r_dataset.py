@@ -1,6 +1,7 @@
 import time
 import random
 import csv
+import math
 
 import base64
 import logging
@@ -11,6 +12,7 @@ from torch.utils.data import Dataset
 from transformers import BertTokenizer
 
 import sys
+
 sys.path.append('..')
 from utils.parameters import args
 
@@ -43,9 +45,29 @@ def read_img_features(feature_path, views):
     return features
 
 
-def angle_feature(heading, elevation):
+def angle_feature(heading, elevation, angle_feat_size=128):
     return np.array([np.sin(heading), np.cos(heading), np.sin(elevation), np.cos(elevation)] * (128 // 4),
                     dtype=np.float32)
+
+
+def get_point_angle_feature(angle_feat_size, baseViewId=0):
+    feature = np.empty((36, angle_feat_size), np.float32)
+    base_heading = (baseViewId % 12) * math.radians(30)
+    for ix in range(36):
+        if ix == 0:
+            heading = 0
+            elevation = math.radians(-30)
+        elif ix % 12 == 0:
+            heading = 0
+            elevation += math.radians(30)
+        else:
+            heading += math.radians(30)
+        feature[ix, :] = angle_feature(heading - base_heading, elevation, angle_feat_size)
+    return feature
+
+
+def get_all_point_angle_feature(angle_feat_size):
+    return [get_point_angle_feature(angle_feat_size, baseViewId) for baseViewId in range(36)]
 
 
 def random_word(tokens_ids, vocab_range, mask_token_id, pad_token_id):
@@ -170,6 +192,9 @@ class NapDataset(Dataset):
         self.image_feat = features
         self.pad_token_id = 0
 
+        # get the angle feature of all viewId
+        self.all_point_angle_feature = get_all_point_angle_feature(args.angle_feat_dim)
+
         # split the each viewpoint
         self.viewpoint_data = list()
         for item in json_data:
@@ -185,6 +210,7 @@ class NapDataset(Dataset):
                 '''
 
                 new_item['long_id'] = '%s_%s' % (point[0], point[1])
+                new_item['viewId'] = point[2]
                 new_item['instr_ids'] = item['instr_ids']
                 new_item['cand_view_idex'] = item['cands_view_index'][index]
                 new_item['cand_rela_angle'] = item['cands_rela_angle'][index]
@@ -204,8 +230,8 @@ class NapDataset(Dataset):
         # 2.prepare the candidate or pano views of each point
         if args.pano:
             _long_id = item['long_id']
-            candidate_views = self.image_feat[_long_id]
-            candidate_angle_feats = np.repeat(np.reshape(angle_feature(0, 0), (1, -1)), 36, axis=0)
+            candidate_views = self.image_feat[_long_id]  # 36 x img_feat_dim
+            candidate_angle_feats = self.all_point_angle_feature[item['viewId']]  # 36 x angle_feat_dim
             candidate_views = np.concatenate([candidate_views, candidate_angle_feats], axis=1)
 
             # 3.pad the stop 'views'
@@ -234,7 +260,7 @@ class NapDataset(Dataset):
             else:
                 teacher_action = torch.tensor([item['next_viewpointid']])
         else:
-            teacher_action = torch.tensor([candidate_views.shape[0]-1])
+            teacher_action = torch.tensor([candidate_views.shape[0] - 1])
 
         return instr_ids, instr_mask, candidate_views, teacher_action
 
@@ -265,6 +291,7 @@ class NarDataset(Dataset):
 
         self.image_feat = features
         self.pad_token_id = 0
+        self.all_point_angle_feature = get_all_point_angle_feature(args.angle_feat_dim)
 
         # split the each viewpoint
         self.viewpoint_data = list()
@@ -281,6 +308,7 @@ class NarDataset(Dataset):
                 '''
 
                 new_item['long_id'] = '%s_%s' % (point[0], point[1])
+                new_item['viewId'] = point[2]
                 new_item['instr_ids'] = item['instr_ids']
                 new_item['cand_view_idex'] = item['cands_view_index'][index]
                 new_item['cand_rela_angle'] = item['cands_rela_angle'][index]
@@ -305,8 +333,8 @@ class NarDataset(Dataset):
         # 2.prepare the candidate views of the random selected viewpoint in path
         if args.pano:
             _long_id = item['long_id']
-            candidate_views = self.image_feat[_long_id]
-            candidate_angle_feats = np.repeat(np.reshape(angle_feature(0, 0), (1, -1)), 36, axis=0)
+            candidate_views = self.image_feat[_long_id]  # 36 x img_feat_dim
+            candidate_angle_feats = self.all_point_angle_feature[item['viewId']]  # 36 x angle_feat_dim
             candidate_views = np.concatenate([candidate_views, candidate_angle_feats], axis=1)
 
             # 3.pad the stop 'views'

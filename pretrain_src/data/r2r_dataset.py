@@ -129,6 +129,11 @@ class MlmDataset(Dataset):
             image_feat = self.image_feat[_long_id][viewpoint[2]]
             angle_feat = angle_feature(0, 0)
             traj_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+
+        # 3.pad the stop 'views'
+        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
+        traj_views.append(pad_stop_cand)
+
         traj_views = torch.from_numpy(np.vstack(traj_views))  # traj_len, feature_dim
 
         return instr_ids, instr_labels, instr_mask, traj_views
@@ -245,7 +250,7 @@ class NarDataset(Dataset):
         # split the each viewpoint
         self.viewpoint_data = list()
         for item in json_data:
-            for index, point in enumerate(item['path'][:-1]):
+            for index, point in enumerate(item['path']):
                 new_item = dict()
                 '''
                 new_item = {
@@ -440,10 +445,14 @@ class ItmDataset(Dataset):
             image_feat = self.image_feat[_long_id][viewpoint[2]]
             angle_feat = angle_feature(0, 0)
             traj_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+
+        # 3.pad the stop 'views'
+        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
+        traj_views.append(pad_stop_cand)
+
         traj_views = torch.from_numpy(np.vstack(traj_views))  # traj_len, feature_dim
 
         itm_label = torch.tensor([itm_label])
-
         return instr_ids, instr_mask, traj_views, itm_label
 
 

@@ -208,6 +208,7 @@ if __name__ == '__main__':
                                         drop_last=True)
     del train_json_data
     del val_json_data
+    assert len(train_nap_dataloader.sampler) == len(train_nar_dataloader.sampler), 'nar and nap dataste shoule have the same length.'
     LOGGER.info(f"Finish creating all dataset and dataloader, train on {len(train_nap_dataloader.sampler)} items, validate on {len(val_nap_dataset)} items")
 
     # ------------------------------------------- #

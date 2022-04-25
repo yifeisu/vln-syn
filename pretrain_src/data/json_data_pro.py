@@ -8,11 +8,6 @@ import MatterSim
 import networkx as nx
 import numpy as np
 
-from r2r_dataset import read_img_features
-
-sys.path.append('E:/4-MyResearch_Task/0-vln/3-vln_space/pretrain_src/utils/')
-sys.path.append('E:/4-MyResearch_Task/0-vln/3-vln_space/finetune_src/')
-
 
 def load_nav_graphs(_scans):
     """ Load connectivity graph for each scan """

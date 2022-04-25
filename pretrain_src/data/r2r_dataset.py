@@ -10,6 +10,10 @@ import torch
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
 
+import sys
+sys.path.append('..')
+from utils.parameters import args
+
 csv.field_size_limit(2500000)
 logger = logging.getLogger(__name__)
 
@@ -197,13 +201,17 @@ class NapDataset(Dataset):
         instr_ids = torch.LongTensor(instr)
         instr_mask = (instr_ids != self.pad_token_id).long()
 
-        # 2.prepare the candidate views of each point
-        candidate_views = list()
-        _long_id = item['long_id']
-        for index, candidate in enumerate(item["cand_view_idex"]):
-            image_feat = self.image_feat[_long_id][candidate]
-            angle_feat = angle_feature(*item["cand_rela_angle"][index])
-            candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+        # 2.prepare the candidate or pano views of each point
+        if args.pano:
+            _long_id = item['long_id']
+            candidate_views = self.image_feat[_long_id]
+        else:
+            candidate_views = list()
+            _long_id = item['long_id']
+            for index, candidate in enumerate(item["cand_view_idex"]):
+                image_feat = self.image_feat[_long_id][candidate]
+                angle_feat = angle_feature(*item["cand_rela_angle"][index])
+                candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
 
         # 3.pad the stop 'views'
         pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
@@ -213,7 +221,10 @@ class NapDataset(Dataset):
 
         # 4.prepare the label
         if item['next_viewpointid'] != -1:
-            teacher_action = torch.tensor([item['next_viewpointid']])
+            if args.pano:
+                teacher_action = item['cand_view_idex'][item['next_viewpointid']]
+            else:
+                teacher_action = torch.tensor([item['next_viewpointid']])
         else:
             teacher_action = torch.tensor([candidate_views.shape[0]-1])
 
@@ -284,12 +295,16 @@ class NarDataset(Dataset):
         instr_mask = (instr_ids != self.pad_token_id).long()
 
         # 2.prepare the candidate views of the random selected viewpoint in path
-        candidate_views = list()
-        _long_id = item['long_id']
-        for index, candidate in enumerate(item["cand_view_idex"]):
-            image_feat = self.image_feat[_long_id][candidate]
-            angle_feat = angle_feature(*item["cand_rela_angle"][index])
-            candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
+        if args.pano:
+            _long_id = item['long_id']
+            candidate_views = self.image_feat[_long_id]
+        else:
+            candidate_views = list()
+            _long_id = item['long_id']
+            for index, candidate in enumerate(item["cand_view_idex"]):
+                image_feat = self.image_feat[_long_id][candidate]
+                angle_feat = angle_feature(*item["cand_rela_angle"][index])
+                candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
 
         # 3.pad the stop 'views'
         pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)

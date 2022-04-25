@@ -61,6 +61,11 @@ class Param:
                                  type=int,
                                  default=1)
 
+        self.parser.add_argument('--pano',
+                                 type=int,
+                                 default=0,
+                                 help='wether to use pano views in pretraing(nap/nar)')
+
         # Data preparation
         self.parser.add_argument('--views',
                                  type=int,

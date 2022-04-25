@@ -208,7 +208,7 @@ class NapDataset(Dataset):
 
             # 3.pad the stop 'views'
             pad_stop_cand = np.concatenate([np.zeros_like(candidate_views[0], dtype=np.float32), angle_feature(0, 0)], axis=0)
-            candidate_views = np.concatenate([candidate_views, pad_stop_cand], axis=0)
+            candidate_views = np.vstack([candidate_views, pad_stop_cand], axis=0)
 
             candidate_views = torch.from_numpy(candidate_views)
         else:
@@ -307,7 +307,7 @@ class NarDataset(Dataset):
 
             # 3.pad the stop 'views'
             pad_stop_cand = np.concatenate([np.zeros_like(candidate_views[0], dtype=np.float32), angle_feature(0, 0)], axis=0)
-            candidate_views = np.concatenate([candidate_views, pad_stop_cand], axis=0)
+            candidate_views = np.vstack([candidate_views, pad_stop_cand], axis=0)
 
             candidate_views = torch.from_numpy(candidate_views)
         else:

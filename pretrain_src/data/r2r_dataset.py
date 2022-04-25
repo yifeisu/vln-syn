@@ -205,6 +205,8 @@ class NapDataset(Dataset):
         if args.pano:
             _long_id = item['long_id']
             candidate_views = self.image_feat[_long_id]
+            candidate_angle_feats = np.repeat(np.reshape(angle_feature(0, 0), (1, -1)), 36, axis=0)
+            candidate_views = np.concatenate([candidate_views, candidate_angle_feats], axis=1)
 
             # 3.pad the stop 'views'
             pad_stop_cand = np.concatenate([np.zeros_like(candidate_views[0], dtype=np.float32), angle_feature(0, 0)], axis=0)
@@ -304,6 +306,8 @@ class NarDataset(Dataset):
         if args.pano:
             _long_id = item['long_id']
             candidate_views = self.image_feat[_long_id]
+            candidate_angle_feats = np.repeat(np.reshape(angle_feature(0, 0), (1, -1)), 36, axis=0)
+            candidate_views = np.concatenate([candidate_views, candidate_angle_feats], axis=1)
 
             # 3.pad the stop 'views'
             pad_stop_cand = np.concatenate([np.zeros_like(candidate_views[0], dtype=np.float32), angle_feature(0, 0)], axis=0)

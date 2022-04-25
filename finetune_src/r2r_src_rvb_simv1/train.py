@@ -1,20 +1,18 @@
-import torch
-
-import os
-import time
 import json
+import os
 import random
-import numpy as np
+import time
+import warnings
 from collections import defaultdict
 
-from utils import read_vocab, write_vocab, build_vocab, padding_idx, timeSince, read_img_features, print_progress
-import utils
-from env import R2RBatch
+import numpy as np
+import torch
+
 from agent import Seq2SeqAgent
+from env import R2RBatch
 from eval import Evaluation
 from param import args
-
-import warnings
+from utils import timeSince, read_img_features, print_progress
 
 warnings.filterwarnings("ignore")
 from tensorboardX import SummaryWriter

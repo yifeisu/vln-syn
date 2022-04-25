@@ -1,17 +1,15 @@
-""" Batched Room-to-Room navigation environment """
-import sys
-import MatterSim
+''' Batched Room-to-Room navigation environment '''
 import csv
-import numpy as np
 import math
-import base64
-import utils
-import json
-import os
 import random
-import networkx as nx
-from param import args
+import sys
 
+import MatterSim
+import networkx as nx
+import numpy as np
+
+import utils
+from param import args
 from utils import load_datasets, load_nav_graphs, pad_instr_tokens
 
 csv.field_size_limit(sys.maxsize)
@@ -43,35 +41,23 @@ class EnvBatch:
             self.image_w = 640
             self.image_h = 480
             self.vfov = 60
-        # self.sims = []
-        # for i in range(batch_size):
-        #     sim = MatterSim.Simulator()
-        #     sim.setRenderingEnabled(False)
-        #     sim.setDiscretizedViewingAngles(True)   # Set increment/decrement to 30 degree. (otherwise by radians)
-        #     sim.setCameraResolution(self.image_w, self.image_h)
-        #     sim.setCameraVFOV(math.radians(self.vfov))
-        #     sim.init()
-        #     self.sims.append(sim)
+        self.sims = []
+        for i in range(batch_size):
+            sim = MatterSim.Simulator()
+            sim.setRenderingEnabled(False)
+            sim.setDiscretizedViewingAngles(True)  # Set increment/decrement to 30 degree. (otherwise by radians)
+            sim.setCameraResolution(self.image_w, self.image_h)
+            sim.setCameraVFOV(math.radians(self.vfov))
+            sim.initialize()
+            self.sims.append(sim)
 
-        # sim version v2
-        self.sim = MatterSim.Simulator()
-        self.sim.setRenderingEnabled(False)
-        self.sim.setDiscretizedViewingAngles(True)
-        self.sim.setCameraResolution(self.image_w, self.image_h)
-        self.sim.setCameraVFOV(math.radians(self.vfov))
-        self.sim.setBatchSize(batch_size)
-        self.sim.initialize()
-
-    @staticmethod
-    def _make_id(scanId, viewpointId):
+    def _make_id(self, scanId, viewpointId):
         return scanId + '_' + viewpointId
 
-    def newEpisodes(self, scanIds, viewpointIds, headings, elevations=None):
-        # simulator v2
-        if elevations:
-            self.sim.newEpisode(scanIds, viewpointIds, headings, elevations)
-        else:
-            self.sim.newEpisode(scanIds, viewpointIds, headings, [0] * self.batch_size)
+    def newEpisodes(self, scanIds, viewpointIds, headings):
+        # simulator v1
+        for i, (scanId, viewpointId, heading) in enumerate(zip(scanIds, viewpointIds, headings)):
+            self.sims[i].newEpisode([scanId], [viewpointId], [heading], [0])
 
     def getStates(self):
         """
@@ -81,8 +67,9 @@ class EnvBatch:
         :return: [ ((30, 2048), sim_state) ] * batch_size
         """
         feature_states = []
-        # simulator v2
-        for state in self.sim.getState():
+        for i, sim in enumerate(self.sims):
+            state = sim.getState()
+            state = state[0]
             long_id = self._make_id(state.scanId, state.location.viewpointId)
             if self.features:
                 feature = self.features[long_id]
@@ -92,27 +79,10 @@ class EnvBatch:
         return feature_states
 
     def makeActions(self, actions):
-        """
-        Take an action using the full state dependent action interface (with batched input).
-        Every action element should be an (index, heading, elevation) tuple.
-
-        actions: a list of action tuple
-        """
-
-        # simulator v2
-        ix = []
-        heading = []
-        elevation = []
-        for i, h, e in actions:
-            ix.append(int(i))
-            heading.append(float(h))
-            elevation.append(float(e))
-        self.sim.makeAction(ix, heading, elevation)
-
-        # actions_list = list(zip(*actions))
-        # convert_type = lambda x, y, z: [list(map(int, x)), list(map(float, y)), list(map(float, z))]
-        # actions_list = convert_type(*actions_list)
-        # self.sim.makeAction(*actions_list)
+        """ Take an action using the full state dependent action interface (with batched input).
+            Every action element should be an (index, heading, elevation) tuple. """
+        for i, (index, heading, elevation) in enumerate(actions):
+            self.sims[i].makeAction(index, heading, elevation)
 
 
 class R2RBatch:
@@ -293,23 +263,27 @@ class R2RBatch:
                     loc_heading = heading + loc.rel_heading
                     loc_elevation = elevation + loc.rel_elevation
                     angle_feat = utils.angle_feature(loc_heading, loc_elevation)
-                    if loc.viewpointId not in adj_dict or distance < adj_dict[loc.viewpointId]['distance']:
-                        adj_dict[loc.viewpointId] = {'heading': loc_heading,
-                                                     'elevation': loc_elevation,
-                                                     "normalized_heading": state.heading + loc.rel_heading,
-                                                     'scanId': scanId,
-                                                     'viewpointId': loc.viewpointId,  # Next viewpoint id
-                                                     'pointId': ix,
-                                                     'distance': distance,
-                                                     'idx': j + 1,
-                                                     'feature': np.concatenate((visual_feat, angle_feat), -1)}
+                    if (loc.viewpointId not in adj_dict or
+                            distance < adj_dict[loc.viewpointId]['distance']):
+                        adj_dict[loc.viewpointId] = {
+                            'heading': loc_heading,
+                            'elevation': loc_elevation,
+                            "normalized_heading": state.heading + loc.rel_heading,
+                            'scanId': scanId,
+                            'viewpointId': loc.viewpointId,  # Next viewpoint id
+                            'pointId': ix,
+                            'distance': distance,
+                            'idx': j + 1,
+                            'feature': np.concatenate((visual_feat, angle_feat), -1)
+                        }
             candidate = list(adj_dict.values())
-            self.buffered_state_dict[long_id] = [{key: c[key]
-                                                  for key in
-                                                  ['normalized_heading', 'elevation', 'scanId', 'viewpointId',
-                                                   'pointId', 'idx']}
-                                                 for c in candidate]
-
+            self.buffered_state_dict[long_id] = [
+                {key: c[key]
+                 for key in
+                 ['normalized_heading', 'elevation', 'scanId', 'viewpointId',
+                  'pointId', 'idx']}
+                for c in candidate
+            ]
             return candidate
         else:
             candidate = self.buffered_state_dict[long_id]

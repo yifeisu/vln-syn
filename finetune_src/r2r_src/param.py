@@ -86,6 +86,10 @@ class Param:
         self.parser.add_argument("--aug",
                                  default='r2r_data/prevalent_aug.json')
 
+        self.parser.add_argument("--speaker_aug",
+                                 type=int,
+                                 default=0)
+
         # Data preparation
         self.parser.add_argument('--maxInput',
                                  type=int,

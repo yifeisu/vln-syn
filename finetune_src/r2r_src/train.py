@@ -256,12 +256,18 @@ def train_val_augment(test_only=False):
                          batch_size=args.batch_size,
                          splits=['train'],
                          tokenizer=tok_bert)
-
-    aug_env = R2RBatch(feat_dict,
-                       batch_size=args.batch_size,
-                       splits=[args.aug],
-                       tokenizer=tok_bert,
-                       name='aug')
+    if args.speaker_aug:
+        aug_env = R2RBatch(feat_dict,
+                           batch_size=args.batch_size,
+                           splits=[args.aug, 'r2r_data/aug_paths.json'],
+                           tokenizer=tok_bert,
+                           name='aug')
+    else:
+        aug_env = R2RBatch(feat_dict,
+                           batch_size=args.batch_size,
+                           splits=[args.aug],
+                           tokenizer=tok_bert,
+                           name='aug')
 
     # Setup the validation data
     val_envs = {split: (R2RBatch(feat_dict, batch_size=args.batch_size, splits=[split], tokenizer=tok_bert),

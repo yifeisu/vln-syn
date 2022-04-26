@@ -77,9 +77,15 @@ def load_datasets(splits):
         if "/" not in split:
             with open('r2r_data/R2R_%s.json' % split) as f:
                 new_data = json.load(f)
-        else:
+        elif 'prevalent_aug' in split:
             # aug data from prevalent
             print('Loading prevalent data for pretraining...')
+            with open(split) as f:
+                # a list of dicts containin the paths and instructions
+                new_data = json.load(f)
+        elif 'aug_paths' in split:
+            # aug data from speaker-follower
+            print('Loading speaker data for pretraining...')
             with open(split) as f:
                 # a list of dicts containin the paths and instructions
                 new_data = json.load(f)

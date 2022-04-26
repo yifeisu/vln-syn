@@ -129,7 +129,7 @@ class R2RBatch:
                 if args.test_only and i_item == 64:
                     break
                 # filter the wrong data in prevalent aug data
-                if "/" in split:
+                if "/p" in split:
                     try:
                         new_item = dict(item)
                         new_item['instr_id'] = item['path_id']

@@ -32,7 +32,10 @@ def build_optimizer(model, args):
         optimcls = RangerLars
     else:
         raise ValueError('invalid optimizer')
+
     optimizer = optimcls(optimizer_grouped_parameters,
                          lr=args.lr,
                          betas=args.betas)
+
+    optimizer.zero_grad()
     return optimizer

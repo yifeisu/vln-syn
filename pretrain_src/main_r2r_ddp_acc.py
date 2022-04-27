@@ -53,7 +53,7 @@ def set_random_seed(_seed):
 
 if __name__ == '__main__':
     # ------------------------------------------- #
-    # set seed and log writer
+    # set ddp seed and initialize the log writer
     # ------------------------------------------- #
     seed = args.seed
     if args.local_rank != -1:
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     config.visual_pos_dim = 4
     config.x_layers = args.x_layers
     config.r_layers = 0
-    config.pred_head_dropout_prob = 0.2
+    config.pred_head_dropout_prob = 0.3
 
     model = VlnModelPreTraining(config=config).cuda()
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True)
@@ -96,6 +96,8 @@ if __name__ == '__main__':
         image_feat = read_img_features('data/CLIP-ViT-B-32-views.tsv', 36)
     elif args.feature == 'res152_imagenet':
         image_feat = read_img_features('data/ResNet-152-imagenet.tsv', 36)
+    elif args.feature == 'res152_places365':
+        image_feat = read_img_features('data/ResNet-152-places365.tsv', 36)
 
     # 1.train data
     with open("data/r2r_train.json", 'r') as f:
@@ -221,35 +223,35 @@ if __name__ == '__main__':
 
     optimizer = build_optimizer(model, args)
 
-    loss_weight = {'mlm': 1.5,
-                   'nap': 1.3,
-                   'nar': 1.4,
+    loss_weight = {'mlm': 1.3,
+                   'nap': 1.4,
+                   'nar': 1.5,
                    'tom': 1.1,
                    'itm': 1.2}
     sample_rate = {'mlm': 4,
-                   'nap': 2,
+                   'nap': 3,
                    'nar': 3,
                    'tom': 1,
                    'itm': 2}
 
     loader_list = []
     if 'mlm' in args.proxy:
-        loader_list += ['mlm']*sample_rate['mlm']
+        loader_list += ['mlm'] * sample_rate['mlm']
     if 'nap' in args.proxy:
-        loader_list += ['nap']*sample_rate['nap']
+        loader_list += ['nap'] * sample_rate['nap']
     if 'tom' in args.proxy:
-        loader_list += ['tom']*sample_rate['tom']
+        loader_list += ['tom'] * sample_rate['tom']
     if 'itm' in args.proxy:
-        loader_list += ['itm']*sample_rate['itm']
+        loader_list += ['itm'] * sample_rate['itm']
     if 'nar' in args.proxy:
-        loader_list += ['nar']*sample_rate['nar']
+        loader_list += ['nar'] * sample_rate['nar']
     LOGGER.info(loader_list)
+
     # ------------------------------------------- #
     # training and validate process
     # ------------------------------------------- #
     LOGGER.info(f"********** Running training with {args.local_rank} GPU, total epoch {args.epoch}, in accumulate train mode.. **********")
     optim_step = 10
-    optimizer.zero_grad()
     best_model = {'score': 0.0,
                   'mlm_acc': 0.0,
                   'nap_acc': 0.0,
@@ -257,29 +259,25 @@ if __name__ == '__main__':
                   'itm_acc': 0.0,
                   'nar_acc': 0.0,
                   }
+
     lr_this_step = 0
     global_step = 0
-    for epoch in range(args.epoch):
-        train_mlm_sampler.set_epoch(epoch)
-        train_nap_sampler.set_epoch(epoch)
-        train_tom_sampler.set_epoch(epoch)
-        train_itm_sampler.set_epoch(epoch)
-        train_nar_sampler.set_epoch(epoch)
-        # obtain the dataloader iter
-        train_mlm_iter = iter(train_mlm_dataloader)
-        train_nap_iter = iter(train_nap_dataloader)
-        train_tom_iter = iter(train_tom_dataloader)
-        train_itm_iter = iter(train_itm_dataloader)
-        train_nar_iter = iter(train_nar_dataloader)
+    total_iter = len(train_nap_dataloader.sampler) // args.batchSize * args.epoch
+    warmup_iter = 500000
 
+    # obtain the dataloader iter
+    train_mlm_iter = iter(train_mlm_dataloader)
+    train_nap_iter = iter(train_nap_dataloader)
+    train_tom_iter = iter(train_tom_dataloader)
+    train_itm_iter = iter(train_itm_dataloader)
+    train_nar_iter = iter(train_nar_dataloader)
+    for epoch in range(args.epoch):
         # ------------------------------------------- #
         # training process
         # ------------------------------------------- #
         index = 0
         model.train()
 
-        total_iter = len(train_nap_dataloader.sampler) // args.batchSize * args.epoch
-        warmup_iter = total_iter // 4 // args.gradient_accumulation_steps
         while True:
             # -------------------------------------------------------------------------------------- #
             # set wandb project
@@ -296,6 +294,7 @@ if __name__ == '__main__':
 
             global_step += 1
             index += 1
+
             if index >= (len(train_nap_dataloader.sampler) // args.batchSize):
                 break
 
@@ -305,7 +304,8 @@ if __name__ == '__main__':
                 try:
                     data = next(train_mlm_iter)
                 except StopIteration as e:
-                    print("\nReload the train_mlm_iter, until the train_nap_iter stops itering.")
+                    print("\nReload the train_mlm_iter.")
+                    train_mlm_sampler.set_epoch(epoch)
                     train_mlm_iter = iter(train_mlm_dataloader)
                     data = next(train_mlm_iter)
 
@@ -331,7 +331,8 @@ if __name__ == '__main__':
                 try:
                     data = next(train_tom_iter)
                 except StopIteration as e:
-                    print("Reload the train_tom_iter, until the train_nap_iter stops itering.")
+                    print("Reload the train_tom_iter.")
+                    train_tom_sampler.set_epoch(epoch)
                     train_tom_iter = iter(train_tom_dataloader)
                     data = next(train_tom_iter)
 
@@ -357,7 +358,8 @@ if __name__ == '__main__':
                 try:
                     data = next(train_itm_iter)
                 except StopIteration as e:
-                    print("Reload the train_itm_iter, until the train_nap_iter stops itering.")
+                    print("Reload the train_itm_iter.")
+                    train_itm_sampler.set_epoch(epoch)
                     train_itm_iter = iter(train_itm_dataloader)
                     data = next(train_itm_iter)
 
@@ -383,8 +385,10 @@ if __name__ == '__main__':
                 try:
                     data = next(train_nap_iter)
                 except StopIteration as e:
-                    print('\n')
-                    break
+                    print("Reload the train_nap_iter.")
+                    train_nap_sampler.set_epoch(epoch)
+                    train_nap_iter = iter(train_nap_dataloader)
+                    data = next(train_nap_iter)
 
                 with torch.no_grad():
                     data = [item.cuda(non_blocking=True) for item in data]
@@ -407,8 +411,10 @@ if __name__ == '__main__':
                 try:
                     data = next(train_nar_iter)
                 except StopIteration as e:
-                    print('\n')
-                    break
+                    print("Reload the train_nar_iter.")
+                    train_nar_sampler.set_epoch(epoch)
+                    train_nar_iter = iter(train_nar_dataloader)
+                    data = next(train_nar_iter)
 
                 with torch.no_grad():
                     data = [item.cuda(non_blocking=True) for item in data]
@@ -510,7 +516,7 @@ if __name__ == '__main__':
                     if now_model['score'] > best_model['score']:
                         best_model.update(now_model)
 
-                        save_path = args.log_dir + '/best_model/'
+                        save_path = args.log_dir + '/best_model_%s/' % epoch
                         model.module.save_pretrained(save_path)
                         model.module.bert.save_pretrained(save_path + '/bert')
                         LOGGER.info(f"Best model saved.")

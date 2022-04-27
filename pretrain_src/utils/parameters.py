@@ -22,7 +22,7 @@ class Param:
 
         self.parser.add_argument('--lr',
                                  type=float,
-                                 default=1e-4,
+                                 default=5e-5,
                                  help="the init learning rate")
 
         self.parser.add_argument('--gradient_accumulation_steps',
@@ -119,7 +119,7 @@ class Param:
 
         self.parser.add_argument('--grad_norm',
                                  type=float,
-                                 default=50.0)
+                                 default=10.0)
 
         self.args = self.parser.parse_args()
 

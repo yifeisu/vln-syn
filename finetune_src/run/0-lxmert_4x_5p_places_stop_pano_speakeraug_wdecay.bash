@@ -1,6 +1,7 @@
 # name of the exp, where the "log.txt" and "weights" store
 name=${0}
 name=${name%.*}
+name=${name#/*}
 
 args="--gpu_id ${1}
       --name ${name}

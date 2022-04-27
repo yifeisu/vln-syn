@@ -263,7 +263,7 @@ if __name__ == '__main__':
     lr_this_step = 0
     global_step = 0
     total_iter = len(train_nap_dataloader.sampler) // args.batchSize * args.epoch
-    warmup_iter = 500000
+    warmup_iter = 5000
 
     # obtain the dataloader iter
     train_mlm_iter = iter(train_mlm_dataloader)

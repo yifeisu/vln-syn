@@ -1,6 +1,6 @@
 name=${0}
 name=${name%.*}
-name=${name#/*}
+name=${name#*/}
 
 args="--gpu_id ${1}
       --name ${name}

@@ -1,4 +1,4 @@
-name=recurrent-vln-bert-prevalent-bs8-places365
+name=recurrent-vln-bert-prevalent-bs8-places365-simv2
 
 flag="--vlnbert prevalent
 

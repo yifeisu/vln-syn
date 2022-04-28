@@ -9,10 +9,11 @@ args="--gpu_id ${1}
       --batchSize 128
       --num_workers 0
 
+      --grad_norm 5.0
       --weight_decay 0.01
       --gradient_accumulation_steps 4
 
-      --pano 1
+      --pano 0
       --lxmert_pretrain 0
       --x_layers 4
       --proxy mlm,nap,itm,tom,nar

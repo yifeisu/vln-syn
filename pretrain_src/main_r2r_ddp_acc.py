@@ -225,16 +225,16 @@ if __name__ == '__main__':
 
     optimizer = build_optimizer(model, args)
 
-    loss_weight = {'mlm': 1.5,
-                   'nap': 1.3,
-                   'nar': 1.5,
-                   'tom': 1.1,
-                   'itm': 1.2}
-    sample_rate = {'mlm': 4,
-                   'nap': 3,
-                   'nar': 3,
-                   'tom': 1,
-                   'itm': 2}
+    loss_weight = {'mlm': 1.0,
+                   'nap': 1.0,
+                   'nar': 1.2,
+                   'tom': 1.0,
+                   'itm': 1.0}
+    sample_rate = {'mlm': 5,
+                   'nap': 2,
+                   'nar': 2,
+                   'tom': 2,
+                   'itm': 3}
 
     loader_list = []
     if 'mlm' in args.proxy:

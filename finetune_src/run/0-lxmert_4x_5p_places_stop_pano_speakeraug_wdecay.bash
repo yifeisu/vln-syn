@@ -1,7 +1,7 @@
 # name of the exp, where the "log.txt" and "weights" store
 name=${0}
 name=${name%.*}
-name=${name#/*}
+name=${name#*/}
 
 args="--gpu_id ${1}
       --name ${name}
@@ -11,9 +11,9 @@ args="--gpu_id ${1}
       --batch_size 16
       --optim adamW
 
-      --pretrain_path ../pretrain_src/snap/pretrain_5p_5m_512_128_4x_envdrop_stop_eager_with_pretrain_pano/1/bert
+      --pretrain_path ../pretrain_src/snap/0-lxmert_4x_scratch_5p_places_envdrop_pano_acc/best_model_1/bert
 
-      --features clip_vit
+      --features res152-places365
       --aug r2r_data/prevalent_aug.json
       --speaker_aug 1
 

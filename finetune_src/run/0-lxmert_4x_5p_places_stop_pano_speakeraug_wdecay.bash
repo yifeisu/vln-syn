@@ -25,4 +25,4 @@ args="--gpu_id ${1}
       --feedback sample
       --mlWeight 0.20"
 
-nohup python -u r2r_src/train.py $args  > ${name}.log 2>&1 &
+nohup python -u r2r_src_smiv1/train.py $args  > ${name}.log 2>&1 &

@@ -1,4 +1,4 @@
-''' Evaluation of agent trajectories '''
+""" Evaluation of agent trajectories """
 
 import json
 import os
@@ -72,7 +72,7 @@ class Evaluation(object):
         )
 
     def score(self, output_file):
-        ''' Evaluate each agent trajectory based on how close it got to the goal location '''
+        """ Evaluate each agent trajectory based on how close it got to the goal location """
         self.scores = defaultdict(list)
         instr_ids = set(self.instr_ids)
         if type(output_file) is str:

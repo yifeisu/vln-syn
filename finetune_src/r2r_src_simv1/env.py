@@ -1,8 +1,8 @@
-''' Batched Room-to-Room navigation environment '''
+""" Batched Room-to-Room navigation environment """
+
 import csv
 import math
 import random
-import sys
 
 import MatterSim
 import networkx as nx
@@ -21,8 +21,6 @@ class EnvBatch:
 
     def __init__(self, feature_store=None, batch_size=8):
         """
-        1. Load pretrained image feature
-        2. Init the Simulator.
         :param feature_store: The name of file stored the feature.
         :param batch_size:  Used to create the simulator list.
         """
@@ -41,6 +39,7 @@ class EnvBatch:
             self.image_w = 640
             self.image_h = 480
             self.vfov = 60
+
         self.sims = []
         for i in range(batch_size):
             sim = MatterSim.Simulator()
@@ -48,16 +47,15 @@ class EnvBatch:
             sim.setDiscretizedViewingAngles(True)  # Set increment/decrement to 30 degree. (otherwise by radians)
             sim.setCameraResolution(self.image_w, self.image_h)
             sim.setCameraVFOV(math.radians(self.vfov))
-            sim.initialize()
+            sim.init()
             self.sims.append(sim)
 
     def _make_id(self, scanId, viewpointId):
         return scanId + '_' + viewpointId
 
     def newEpisodes(self, scanIds, viewpointIds, headings):
-        # simulator v1
         for i, (scanId, viewpointId, heading) in enumerate(zip(scanIds, viewpointIds, headings)):
-            self.sims[i].newEpisode([scanId], [viewpointId], [heading], [0])
+            self.sims[i].newEpisode(scanId, viewpointId, heading, 0)
 
     def getStates(self):
         """
@@ -69,7 +67,7 @@ class EnvBatch:
         feature_states = []
         for i, sim in enumerate(self.sims):
             state = sim.getState()
-            state = state[0]
+
             long_id = self._make_id(state.scanId, state.location.viewpointId)
             if self.features:
                 feature = self.features[long_id]
@@ -100,8 +98,8 @@ class R2RBatch:
         if feature_store:
             self.feature_size = self.env.feature_size
         else:
-            self.feature_size = 2048
-        self.data = []
+            self.feature_size = 512
+
         if tokenizer:
             self.tok = tokenizer
 
@@ -112,14 +110,14 @@ class R2RBatch:
                 if args.test_only and i_item == 64:
                     break
                 # filter the wrong data in prevalent aug data
-                if "/" in split:
+                if "/p" in split:
                     try:
                         new_item = dict(item)
                         new_item['instr_id'] = item['path_id']
                         new_item['instructions'] = item['instructions'][0]
                         new_item['instr_encoding'] = item['instr_enc']
 
-                        if new_item['instr_encoding'] is not None:
+                        if new_item['instr_encoding'] is not None:  # Filter the wrong data
                             self.data.append(new_item)
                             scans.append(item['scan'])
                     except:
@@ -238,13 +236,13 @@ class R2RBatch:
         if long_id not in self.buffered_state_dict:
             for ix in range(36):
                 if ix == 0:
-                    self.sim.newEpisode([scanId], [viewpointId], [0], [math.radians(-30)])
+                    self.sim.newEpisode(scanId, viewpointId, 0, math.radians(-30))
                 elif ix % 12 == 0:
-                    self.sim.makeAction([0], [1.0], [1.0])
+                    self.sim.makeAction(0, 1.0, 1.0)
                 else:
-                    self.sim.makeAction([0], [1.0], [0])
+                    self.sim.makeAction(0, 1.0, 0)
 
-                state = self.sim.getState()[0]
+                state = self.sim.getState()
                 assert state.viewIndex == ix
 
                 # Heading and elevation for the viewpoint center
@@ -263,27 +261,23 @@ class R2RBatch:
                     loc_heading = heading + loc.rel_heading
                     loc_elevation = elevation + loc.rel_elevation
                     angle_feat = utils.angle_feature(loc_heading, loc_elevation)
-                    if (loc.viewpointId not in adj_dict or
-                            distance < adj_dict[loc.viewpointId]['distance']):
-                        adj_dict[loc.viewpointId] = {
-                            'heading': loc_heading,
-                            'elevation': loc_elevation,
-                            "normalized_heading": state.heading + loc.rel_heading,
-                            'scanId': scanId,
-                            'viewpointId': loc.viewpointId,  # Next viewpoint id
-                            'pointId': ix,
-                            'distance': distance,
-                            'idx': j + 1,
-                            'feature': np.concatenate((visual_feat, angle_feat), -1)
-                        }
+                    if loc.viewpointId not in adj_dict or distance < adj_dict[loc.viewpointId]['distance']:
+                        adj_dict[loc.viewpointId] = {'heading': loc_heading,
+                                                     'elevation': loc_elevation,
+                                                     "normalized_heading": state.heading + loc.rel_heading,
+                                                     'scanId': scanId,
+                                                     'viewpointId': loc.viewpointId,  # Next viewpoint id
+                                                     'pointId': ix,
+                                                     'distance': distance,
+                                                     'idx': j + 1,
+                                                     'feature': np.concatenate((visual_feat, angle_feat), -1)}
             candidate = list(adj_dict.values())
-            self.buffered_state_dict[long_id] = [
-                {key: c[key]
-                 for key in
-                 ['normalized_heading', 'elevation', 'scanId', 'viewpointId',
-                  'pointId', 'idx']}
-                for c in candidate
-            ]
+            self.buffered_state_dict[long_id] = [{key: c[key]
+                                                  for key in
+                                                  ['normalized_heading', 'elevation', 'scanId', 'viewpointId',
+                                                   'pointId', 'idx']}
+                                                 for c in candidate]
+
             return candidate
         else:
             candidate = self.buffered_state_dict[long_id]

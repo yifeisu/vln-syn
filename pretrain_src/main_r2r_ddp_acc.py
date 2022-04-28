@@ -208,7 +208,9 @@ if __name__ == '__main__':
                                         batch_size=args.batchSize,
                                         collate_fn=nar_collate,
                                         drop_last=True)
-
+    del train_json_data
+    del val_json_data
+    assert len(train_nap_dataloader.sampler) == len(train_nar_dataloader.sampler), 'nar and nap dataste shoule have the same length.'
     LOGGER.info(f"Finish creating all dataset and dataloader, train on {len(train_nap_dataloader.sampler)} items, validate on {len(val_nap_dataset)} items")
 
     # ------------------------------------------- #
@@ -223,8 +225,8 @@ if __name__ == '__main__':
 
     optimizer = build_optimizer(model, args)
 
-    loss_weight = {'mlm': 1.3,
-                   'nap': 1.4,
+    loss_weight = {'mlm': 1.5,
+                   'nap': 1.3,
                    'nar': 1.5,
                    'tom': 1.1,
                    'itm': 1.2}
@@ -250,8 +252,9 @@ if __name__ == '__main__':
     # ------------------------------------------- #
     # training and validate process
     # ------------------------------------------- #
-    LOGGER.info(f"********** Running training with {args.local_rank} GPU, total epoch {args.epoch}, in accumulate train mode.. **********")
+    LOGGER.info(f"********** Running training with {args.local_rank} GPU, total epoch {args.epoch}, in accgrad train mode. **********")
     optim_step = 10
+    optimizer.zero_grad()
     best_model = {'score': 0.0,
                   'mlm_acc': 0.0,
                   'nap_acc': 0.0,

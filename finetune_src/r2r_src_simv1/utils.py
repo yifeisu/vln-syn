@@ -1,18 +1,18 @@
 """ Utils for io, language, connectivity graphs etc """
 
-import re
-import sys
-
-sys.path.append('Matterport_Simulator/build/')
-import string
 import json
-import time
 import math
+import re
+import string
+import sys
+import time
 from collections import Counter, defaultdict
-import numpy as np
+
 import networkx as nx
-from param import args
+import numpy as np
 from numpy.linalg import norm
+
+from param import args
 
 # padding, unknown word, end of sentence
 base_vocab = ['<PAD>', '<UNK>', '<EOS>']
@@ -24,8 +24,9 @@ def load_nav_graphs(scans):
 
     def distance(pose1, pose2):
         """ Euclidean distance between two graph poses """
-        return ((pose1['pose'][3] - pose2['pose'][3]) ** 2 + (pose1['pose'][7] - pose2['pose'][7]) ** 2 + (
-                pose1['pose'][11] - pose2['pose'][11]) ** 2) ** 0.5
+        return ((pose1['pose'][3] - pose2['pose'][3]) ** 2 \
+                + (pose1['pose'][7] - pose2['pose'][7]) ** 2 \
+                + (pose1['pose'][11] - pose2['pose'][11]) ** 2) ** 0.5
 
     graphs = {}
     for scan in scans:
@@ -50,7 +51,7 @@ def load_nav_graphs(scans):
 def load_datasets(splits):
     """
 
-    :param splits: A list of split.
+    param splits: A list of split.
         if the split is "something@5000", it will use a random 5000 data from the data
     :return:
     """
@@ -77,9 +78,15 @@ def load_datasets(splits):
         if "/" not in split:
             with open('r2r_data/R2R_%s.json' % split) as f:
                 new_data = json.load(f)
-        else:
+        elif 'prevalent_aug' in split:
             # aug data from prevalent
             print('Loading prevalent data for pretraining...')
+            with open(split) as f:
+                # a list of dicts containin the paths and instructions
+                new_data = json.load(f)
+        elif 'aug_paths' in split:
+            # aug data from speaker-follower
+            print('\nLoading speaker data for pretraining...')
             with open(split) as f:
                 # a list of dicts containin the paths and instructions
                 new_data = json.load(f)
@@ -263,26 +270,30 @@ def timeSince(since, percent):
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
 
-def read_img_features(feature_store, test_only=False):
-    print('sim v1\n')
+def read_img_features(feature_option, test_only=False):
     import csv
+    csv.field_size_limit(1500000)
     import base64
 
-    print("Start loading the image feature ... (~50 seconds)")
+    # options for precomputed image features
+    if feature_option == 'clip_vit':
+        feature_store = 'image_features/CLIP-ViT-B-32-views.tsv'
+    elif feature_option == 'res152-imagenet':
+        feature_store = 'image_features/ResNet-152-imagenet.tsv'
+    elif feature_option == 'res152-places365':
+        feature_store = 'image_features/ResNet-152-places365.tsv'
+    elif feature_option == 'clip_vit_st_samefilter':
+        feature_store = 'image_features/CLIP-ViT-B-32-views-st-samefilter.tsv'
+
+    print("Start loading the image feature ... (~15 seconds)")
     start = time.time()
 
-    if "detectfeat" in args.features:
-        views = int(args.features[10:])
-    else:
-        views = 36
-
-    args.views = views
-
+    args.views = 36
     tsv_fieldnames = ['scanId', 'viewpointId', 'image_w', 'image_h', 'vfov', 'features']
-
     if not test_only:
         features = {}
-        with open(feature_store, "r") as tsv_in_file:  # Open the tsv file.
+        with open(feature_store, "r") as tsv_in_file:
+            # Open the tsv file.
             reader = csv.DictReader(tsv_in_file, delimiter='\t', fieldnames=tsv_fieldnames)
             for item in reader:
                 long_id = item['scanId'] + "_" + item['viewpointId']
@@ -369,7 +380,7 @@ def new_simulator():
     sim.setCameraResolution(WIDTH, HEIGHT)
     sim.setCameraVFOV(math.radians(VFOV))
     sim.setDiscretizedViewingAngles(True)
-    sim.initialize()
+    sim.init()
 
     return sim
 
@@ -381,13 +392,13 @@ def get_point_angle_feature(baseViewId=0):
     base_heading = (baseViewId % 12) * math.radians(30)
     for ix in range(36):
         if ix == 0:
-            sim.newEpisode(['ZMojNkEp431'], ['2f4d90acd4024c269fb0efe49a8ac540'], [0], [math.radians(-30)])
+            sim.newEpisode('ZMojNkEp431', '2f4d90acd4024c269fb0efe49a8ac540', 0, math.radians(-30))
         elif ix % 12 == 0:
-            sim.makeAction([0], [1.0], [1.0])
+            sim.makeAction(0, 1.0, 1.0)
         else:
-            sim.makeAction([0], [1.0], [0])
+            sim.makeAction(0, 1.0, 0)
 
-        state = sim.getState()[0]
+        state = sim.getState()
         assert state.viewIndex == ix
 
         heading = state.heading - base_heading
@@ -585,7 +596,7 @@ class FloydGraph:
             return self.path(x, k) + self.path(k, y)
 
 
-def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
+def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_length=50):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -660,16 +671,16 @@ def ndtw_graphload(scan):
 
 class DTW(object):
     """Dynamic Time Warping (DTW) evaluation metrics.
-    Python doctest:
-    >>> graph = nx.grid_graph([3, 4])
-    >>> prediction = [(0, 0), (1, 0), (2, 0), (3, 0)]
-    >>> reference = [(0, 0), (1, 0), (2, 1), (3, 2)]
-    >>> dtw = DTW(graph)
-    >>> assert np.isclose(dtw(prediction, reference, 'dtw'), 3.0)
-    >>> assert np.isclose(dtw(prediction, reference, 'ndtw'), 0.77880078307140488)
-    >>> assert np.isclose(dtw(prediction, reference, 'sdtw'), 0.77880078307140488)
-    >>> assert np.isclose(dtw(prediction[:2], reference, 'sdtw'), 0.0)
-    """
+  Python doctest:
+  >>> graph = nx.grid_graph([3, 4])
+  >>> prediction = [(0, 0), (1, 0), (2, 0), (3, 0)]
+  >>> reference = [(0, 0), (1, 0), (2, 1), (3, 2)]
+  >>> dtw = DTW(graph)
+  >>> assert np.isclose(dtw(prediction, reference, 'dtw'), 3.0)
+  >>> assert np.isclose(dtw(prediction, reference, 'ndtw'), 0.77880078307140488)
+  >>> assert np.isclose(dtw(prediction, reference, 'sdtw'), 0.77880078307140488)
+  >>> assert np.isclose(dtw(prediction[:2], reference, 'sdtw'), 0.0)
+  """
 
     def __init__(self, graph, weight='weight', threshold=3.0):
         """Initializes a DTW object.

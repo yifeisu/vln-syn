@@ -529,5 +529,3 @@ if __name__ == '__main__':
             save_path = args.log_dir + '/%s' % epoch
             model.module.save_pretrained(save_path)
             model.module.bert.save_pretrained(save_path + '/bert')
-
-    dist.barrier()

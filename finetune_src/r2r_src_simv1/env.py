@@ -12,7 +12,7 @@ import utils
 from param import args
 from utils import load_datasets, load_nav_graphs, pad_instr_tokens
 
-csv.field_size_limit(sys.maxsize)
+csv.field_size_limit(20000000)
 
 
 class EnvBatch:

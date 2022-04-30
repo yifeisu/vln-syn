@@ -225,7 +225,7 @@ if __name__ == '__main__':
     optimizer = build_optimizer(model, args)
 
     loss_weight = {'mlm': 1.0,
-                   'nap': 1.0,
+                   'nap': 1.1,
                    'nar': 1.2,
                    'tom': 1.0,
                    'itm': 1.0}

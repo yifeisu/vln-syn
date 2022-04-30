@@ -141,7 +141,7 @@ class VlnModelPreTraining(BertPreTrainedModel):
                 image_mask=None,
                 teacher_action=None):
         probs = rd()
-        if probs < 0.5:
+        if probs < 0.3:
             if 'tom' == task:
                 image_feat[0][..., :-args.angle_feat_dim] = self.drop_env(image_feat[0][..., :-args.angle_feat_dim])
             else:

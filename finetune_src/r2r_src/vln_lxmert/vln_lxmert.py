@@ -55,6 +55,9 @@ class VLNLXMERT(nn.Module):
         if args.decision_mode == 'hamt':
             # combine text and visual to predict next action
             self.next_action_pre = NextCandidatePrediction(hidden_size, 0.3)
+            print("Using simlator version 2, and hamt-like decision making.")
+        else:
+            print("Using simlator version 2, and recbert-like decision making.")
 
     def forward(self,
                 mode,

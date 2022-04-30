@@ -459,7 +459,7 @@ class LxmertEncoder(nn.Module):
             attended_language = torch.matmul(language_attention_probs, text_embeds[:, 1:, :]).squeeze(1)
             attended_visual = torch.matmul(visual_attention_probs, output_img_embedding).squeeze(1)
 
-            return lang_output, visual_action_scores, attended_language, attended_visual
+            return lang_output, visual_output, visual_action_scores, attended_language, attended_visual
 
 
 class VlnModel(LxmertPreTrainedModel):
@@ -549,11 +549,11 @@ class VlnModel(LxmertPreTrainedModel):
                                            visual_feats,
                                            extended_visual_attention_mask, )
 
-            lang_output, visual_action_scores, attended_language, attended_visual = encoder_outputs
+            lang_output, visual_output, visual_action_scores, attended_language, attended_visual = encoder_outputs
 
             pooled_output = self.pooler(lang_output)
 
-            return pooled_output, visual_action_scores, attended_language, attended_visual
+            return pooled_output, visual_action_scores, attended_language, attended_visual, lang_output, visual_output
 
         else:
             raise ValueError('mode error.')

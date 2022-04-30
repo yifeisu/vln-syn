@@ -9,6 +9,23 @@ from param import args
 from vln_lxmert.vln_lxmert_init import get_vlnlxmert_models
 
 
+class NextCandidatePrediction(nn.Module):
+    """
+    implement on the candidate embedding, choose the next candidate viewpoint
+    """
+
+    def __init__(self, hidden_size, dropout_rate):
+        super(NextCandidatePrediction, self).__init__()
+        self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
+                                 nn.ReLU(),
+                                 nn.LayerNorm(hidden_size, eps=1e-12),
+                                 nn.Dropout(dropout_rate),
+                                 nn.Linear(hidden_size, 1))
+
+    def forward(self, x):
+        return self.net(x)
+
+
 class VLNLXMERT(nn.Module):
     def __init__(self, feature_size=512 + 128):
         super(VLNLXMERT, self).__init__()
@@ -33,6 +50,16 @@ class VLNLXMERT(nn.Module):
 
         self.state_prj = nn.Linear(hidden_size * 2, hidden_size, bias=True)
         self.state_ln = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+
+        # hame-like decision making.
+        if args.decision_mode == 'hamt':
+            # combine text and visual to predict next action
+            self.next_action_pre = NextCandidatePrediction(hidden_size, 0.3)
+            print("Using simlator version 1, and hamt-like decision making.")
+        elif args.decision_mode == 'recbert':
+            print("Using simlator version 1, and recbert-like decision making.")
+        else:
+            raise ValueError('unknown decision_mode.')
 
     def forward(self,
                 mode,
@@ -61,18 +88,26 @@ class VLNLXMERT(nn.Module):
             # drop the env vision features
             visual_feats[..., :-args.angle_feat_size] = self.drop_env(visual_feats[..., :-args.angle_feat_size])
 
-            h_t, logits, attended_language, attended_visual = self.vln_lxmert(mode,
-                                                                              input_ids=state_lang,  # lang_feats
-                                                                              attention_mask=lang_attention_mask,
-                                                                              visual_feats=visual_feats,
-                                                                              visual_attention_mask=visual_attention_mask)
+            h_t, logits, attended_language, attended_visual, lang_output, visual_output = self.vln_lxmert(mode,
+                                                                                                          input_ids=state_lang,  # lang_feats
+                                                                                                          attention_mask=lang_attention_mask,
+                                                                                                          visual_feats=visual_feats,
+                                                                                                          visual_attention_mask=visual_attention_mask)
 
             vis_lang = self.lang_vis_ln(attended_language * attended_visual)
             state_l_v = torch.cat([h_t, vis_lang], dim=-1)
             state = self.state_prj(state_l_v)
             state = self.state_ln(state)
 
-            return state, logits
+            if args.decision_mode == 'recbert':
+                preds = logits
+            elif args.decision_mode == 'hamt':
+                # combine text and visual to predict next action
+                preds = self.next_action_pre(visual_output * lang_output[:, 0:1, :]).squeeze(-1)
+            else:
+                raise ValueError('unknown decision_mode.')
+
+            return state, preds
 
         else:
             ModuleNotFoundError

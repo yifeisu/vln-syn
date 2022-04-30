@@ -27,7 +27,7 @@ print(args)
 # -------------------------------------------------------------------------------------- #
 # train the listener
 # -------------------------------------------------------------------------------------- #
-def train(train_env, tok, n_iters, log_every=1000, val_envs={}, aug_env=None):
+def train(train_env, tok, n_iters, log_every=2000, val_envs={}, aug_env=None):
     listner = Seq2SeqAgent(train_env, "", tok, args.maxAction)
 
     # init the wandb writer and record experiment args

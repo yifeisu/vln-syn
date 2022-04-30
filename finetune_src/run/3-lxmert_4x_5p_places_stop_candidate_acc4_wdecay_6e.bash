@@ -11,7 +11,7 @@ args="--gpu_id ${1}
       --batch_size 8
       --optim adamW
 
-      --pretrain_path ../pretrain_src/snap/0-lxmert_4x_scratch_5p_places_envdrop_candidate_acc4/best_model_3/bert
+      --pretrain_path ../pretrain_src/snap/0-lxmert_4x_scratch_5p_places_envdrop_candidate_acc4/5/bert
 
       --features res152-places365
       --aug r2r_data/prevalent_aug.json
@@ -21,7 +21,7 @@ args="--gpu_id ${1}
       --feature_size 2048
       --angleFeatSize 128
 
-      --decay 0.000001
+      --decay 0.0000001
       --feedback sample
       --mlWeight 0.20"
 

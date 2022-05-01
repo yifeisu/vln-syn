@@ -31,6 +31,23 @@ class NextCandidatePrediction(nn.Module):
         return self.net(x)
 
 
+class NextCandidatePredictionCls(nn.Module):
+    """
+    implement on the candidate embedding, choose the next candidate viewpoint
+    """
+
+    def __init__(self, hidden_size, dropout_rate):
+        super(NextCandidatePredictionCls, self).__init__()
+        self.net = nn.Sequential(nn.Linear(hidden_size, hidden_size),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size, eps=1e-12),
+                                 nn.Dropout(dropout_rate),
+                                 nn.Linear(hidden_size, 36+1))
+
+    def forward(self, x):
+        return self.net(x)
+
+
 class NextCandidateRegression(nn.Module):
     """
     implement on the candidate embedding, choose the next candidate viewpoint
@@ -101,7 +118,13 @@ class VlnModelPreTraining(BertPreTrainedModel):
         if 'mlm' in args.proxy:
             self.mlm_head = BertOnlyMLMHead(self.config)
         if 'nap' in args.proxy:
-            self.next_action_pre = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+            if args.nap_mode == 'candview':
+                self.next_action_pre = NextCandidatePrediction(self.config.hidden_size, self.config.pred_head_dropout_prob)
+                logger.info("Using candidate views output to predict the next candidate.")
+            elif args.nap_mode == 'cls':
+                self.next_action_pre = NextCandidatePredictionCls(self.config.hidden_size, self.config.pred_head_dropout_prob)
+                logger.info("Using cls feature to predict the next candidate.")
+
         if 'nar' in args.proxy:
             self.next_action_reg = NextCandidateRegression(self.config.hidden_size, self.config.pred_head_dropout_prob)
         if 'tom' in args.proxy:
@@ -165,8 +188,12 @@ class VlnModelPreTraining(BertPreTrainedModel):
                                                                   visual_feats=image_feat,
                                                                   visual_attention_mask=image_mask)
 
-            # combine text and visual to predict next action
-            prediction_scores = self.next_action_pre(visual_output * lang_output[:, 0:1, :]).squeeze(-1)
+            if args.nap_mode == 'candview':
+                # combine text and visual to predict next action
+                # prediction_scores = self.next_action_pre(visual_output * lang_output[:, 0:1, :]).squeeze(-1)
+                prediction_scores = self.next_action_pre(visual_output).squeeze(-1)
+            elif args.nap_mode == 'cls':
+                prediction_scores = self.next_action_pre(lang_output[:, 0, :])
 
             return prediction_scores
 

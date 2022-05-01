@@ -61,6 +61,11 @@ class Param:
                                  type=int,
                                  default=1)
 
+        self.parser.add_argument('--nap_mode',
+                                 type=str,
+                                 default='candview',
+                                 help='how to predict the next cand, based on cls or candview?')
+
         self.parser.add_argument('--pano',
                                  type=int,
                                  default=0,

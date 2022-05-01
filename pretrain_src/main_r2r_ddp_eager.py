@@ -208,8 +208,7 @@ if __name__ == '__main__':
                                         batch_size=args.batchSize,
                                         collate_fn=nar_collate,
                                         drop_last=True)
-    del train_json_data
-    del val_json_data
+
     assert len(train_nap_dataloader.sampler) == len(train_nar_dataloader.sampler), 'nar and nap dataste shoule have the same length.'
     LOGGER.info(f"Finish creating all dataset and dataloader, train on {len(train_nap_dataloader.sampler)} items, validate on {len(val_nap_dataset)} items")
 
@@ -225,11 +224,11 @@ if __name__ == '__main__':
 
     optimizer = build_optimizer(model, args)
 
-    loss_weight = {'mlm': 1.5,
-                   'nap': 1.3,
-                   'nar': 1.5,
-                   'tom': 1.1,
-                   'itm': 1.2}
+    loss_weight = {'mlm': 1.0,
+                   'nap': 1.1,
+                   'nar': 1.2,
+                   'tom': 1.0,
+                   'itm': 1.0}
 
     # ------------------------------------------- #
     # training and validate process
@@ -257,13 +256,12 @@ if __name__ == '__main__':
     train_itm_iter = iter(train_itm_dataloader)
     train_nar_iter = iter(train_nar_dataloader)
 
+    mlm_epoch = 1
+    nap_epoch = 1
+    nar_epoch = 1
+    tom_epoch = 1
+    itm_epoch = 1
     for epoch in range(args.epoch):
-        train_mlm_sampler.set_epoch(epoch)
-        train_nap_sampler.set_epoch(epoch)
-        train_tom_sampler.set_epoch(epoch)
-        train_itm_sampler.set_epoch(epoch)
-        train_nar_sampler.set_epoch(epoch)
-
         # ------------------------------------------- #
         # training process
         # ------------------------------------------- #
@@ -293,6 +291,8 @@ if __name__ == '__main__':
                     data = next(train_mlm_iter)
                 except StopIteration as e:
                     print("\nReload the train_mlm_iter.")
+                    train_mlm_sampler.set_epoch(mlm_epoch)
+                    mlm_epoch += 1
                     train_mlm_iter = iter(train_mlm_dataloader)
                     data = next(train_mlm_iter)
 
@@ -319,6 +319,8 @@ if __name__ == '__main__':
                     data = next(train_tom_iter)
                 except StopIteration as e:
                     print("Reload the train_tom_iter.")
+                    train_tom_sampler.set_epoch(tom_epoch)
+                    tom_epoch += 1
                     train_tom_iter = iter(train_tom_dataloader)
                     data = next(train_tom_iter)
 
@@ -345,6 +347,8 @@ if __name__ == '__main__':
                     data = next(train_itm_iter)
                 except StopIteration as e:
                     print("Reload the train_itm_iter.")
+                    train_itm_sampler.set_epoch(itm_epoch)
+                    itm_epoch += 1
                     train_itm_iter = iter(train_itm_dataloader)
                     data = next(train_itm_iter)
 
@@ -371,6 +375,8 @@ if __name__ == '__main__':
                     data = next(train_nap_iter)
                 except StopIteration as e:
                     print("Reload the train_nap_iter.")
+                    train_nap_sampler.set_epoch(nap_epoch)
+                    nap_epoch += 1
                     train_nap_iter = iter(train_nap_dataloader)
                     break
 
@@ -396,6 +402,8 @@ if __name__ == '__main__':
                     data = next(train_nar_iter)
                 except StopIteration as e:
                     print("Reload the train_nar_iter.")
+                    train_nar_sampler.set_epoch(nar_epoch)
+                    nar_epoch += 1
                     train_nar_iter = iter(train_nar_dataloader)
                     break
 

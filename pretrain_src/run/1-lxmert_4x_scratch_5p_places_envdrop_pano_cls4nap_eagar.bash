@@ -23,4 +23,4 @@ args="--gpu_id ${1}
       --img_feat_dim 2048
       --angle_feat_dim 128"
 
-nohup python -u -m torch.distributed.launch --nproc_per_node=4 main_r2r_ddp_acc.py $args > ${name}.log 2>&1 &
+nohup python -u -m torch.distributed.launch --nproc_per_node=4 main_r2r_ddp_eager.py $args > ${name}.log 2>&1 &

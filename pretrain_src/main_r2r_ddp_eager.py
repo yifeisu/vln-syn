@@ -250,11 +250,16 @@ if __name__ == '__main__':
     warmup_iter = total_iter // 5 // args.gradient_accumulation_steps
 
     # obtain the dataloader iter
-    train_mlm_iter = iter(train_mlm_dataloader)
-    train_nap_iter = iter(train_nap_dataloader)
-    train_tom_iter = iter(train_tom_dataloader)
-    train_itm_iter = iter(train_itm_dataloader)
-    train_nar_iter = iter(train_nar_dataloader)
+    if 'mlm' in args.proxy:
+        train_mlm_iter = iter(train_mlm_dataloader)
+    if 'nap' in args.proxy:
+        train_nap_iter = iter(train_nap_dataloader)
+    if 'tom' in args.proxy:
+        train_tom_iter = iter(train_tom_dataloader)
+    if 'itm' in args.proxy:
+        train_itm_iter = iter(train_itm_dataloader)
+    if 'nar' in args.proxy:
+        train_nar_iter = iter(train_nar_dataloader)
 
     mlm_epoch = 1
     nap_epoch = 1

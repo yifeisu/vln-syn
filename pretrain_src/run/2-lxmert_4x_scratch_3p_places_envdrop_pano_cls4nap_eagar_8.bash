@@ -9,7 +9,7 @@ args="--gpu_id ${1}
       --batchSize 128
       --num_workers 1
 
-      --grad_norm 5.0
+      --grad_norm 10.0
       --weight_decay 0.01
       --gradient_accumulation_steps 1
 
@@ -23,4 +23,4 @@ args="--gpu_id ${1}
       --img_feat_dim 2048
       --angle_feat_dim 128"
 
-nohup python -u -m torch.distributed.launch --nproc_per_node=6 main_r2r_ddp_acc.py $args > ${name}.log 2>&1 &
+nohup python -u -m torch.distributed.launch --nproc_per_node=8 main_r2r_ddp_acc.py $args > ${name}.log 2>&1 &

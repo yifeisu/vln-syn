@@ -229,7 +229,7 @@ if __name__ == '__main__':
                    'nar': 1.2,
                    'tom': 1.0,
                    'itm': 1.0}
-    sample_rate = {'mlm': 4,
+    sample_rate = {'mlm': 5,
                    'nap': 2,
                    'nar': 2,
                    'tom': 2,

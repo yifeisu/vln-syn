@@ -12,7 +12,8 @@ args="--gpu_id ${1}
       --grad_norm 5.0
       --weight_decay 0.01
       --gradient_accumulation_steps 4
-
+	  
+	  --nap_mode candview
       --pano 0
       --lxmert_pretrain 0
       --x_layers 4

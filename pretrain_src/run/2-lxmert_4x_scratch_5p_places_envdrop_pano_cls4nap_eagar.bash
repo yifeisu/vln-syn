@@ -17,7 +17,7 @@ args="--gpu_id ${1}
       --pano 0
       --lxmert_pretrain 0
       --x_layers 4
-      --proxy mlm,nap,itm
+      --proxy mlm,nap,itm,tom,nar
 
       --feature res152_places365
       --img_feat_dim 2048

@@ -11,7 +11,7 @@ flag="--gpu_id ${1}
 
       --pretrain_path snap/vln_pretrain_3p_long
 	  
-	  --x_layers 4
+	    --x_layers 4
       --features res152-places365
       --feature_size 2048
 

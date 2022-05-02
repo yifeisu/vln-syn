@@ -28,6 +28,11 @@ class Param:
                                  type=int,
                                  default=5)
 
+        self.parser.add_argument("--decision_mode",
+                                 type=str,
+                                 default='recbert',
+                                 help='the way to make decision, according to the pretrain nap task, hamt or recbert.')
+
         # Training process hyperparameters
         self.parser.add_argument('--gpu_id',
                                  default=0,

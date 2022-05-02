@@ -21,6 +21,9 @@ def get_vlnlxmert_models(args, config=None):
     model_class = VlnModel
     assert args.pretrain_path, 'you have to provide the pretrained models'
 
-    visual_model = model_class.from_pretrained(args.pretrain_path, config=config)
+    if args.train == 'validlistener':
+        visual_model = model_class(config=config)
+    else:
+        visual_model = model_class.from_pretrained(args.pretrain_path, config=config)
 
     return visual_model

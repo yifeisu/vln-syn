@@ -18,3 +18,7 @@ test_model.py
 test_teacher_action.py
 test_optim.py
 Recurrent-VLN-BERT-main/
+*.pyc
+finetune_src/r2r_src/__pycache__/param.cpython-39.pyc
+finetune_src/r2r_src/vln_lxmert/__pycache__/vil_lxmert.cpython-39.pyc
+finetune_src/r2r_src/vln_lxmert/__pycache__/vln_lxmert_init.cpython-39.pyc

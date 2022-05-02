@@ -11,7 +11,7 @@ args="--gpu_id ${1}
       --batch_size 8
       --optim adamW
 
-      --pretrain_path ../pretrain_src/snap/1-lxmert_4x_scratch_5p_places_envdrop_pano_cls4nap_eagar/best_model_1/bert
+      --pretrain_path ../pretrain_src/snap/2-lxmert_4x_scratch_3p_places_envdrop_pano_cls4nap_eagar_4/1/bert
 
       --features res152-places365
       --aug r2r_data/prevalent_aug.json

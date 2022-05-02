@@ -10,7 +10,8 @@ flag="--gpu_id ${1}
       --resume snap/6-lxmert_4x_3p_places_stop_pano_eagar_wdecay_2e_cls4nap_recbert4dec_4e/state_dict/best_val_unseen
 
       --pretrain_path snap/vln_pretrain_3p_long
-
+	  
+	  --x_layers 4
       --features res152-places365
       --feature_size 2048
 

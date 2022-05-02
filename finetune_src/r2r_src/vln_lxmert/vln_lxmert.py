@@ -56,8 +56,10 @@ class VLNLXMERT(nn.Module):
             # combine text and visual to predict next action
             self.next_action_pre = NextCandidatePrediction(hidden_size, 0.3)
             print("Using simlator version 2, and hamt-like decision making.")
-        else:
+        elif args.decision_mode == 'recbert':
             print("Using simlator version 2, and recbert-like decision making.")
+        else:
+            raise ValueError('unknown decision_mode.')
 
     def forward(self,
                 mode,
@@ -98,14 +100,14 @@ class VLNLXMERT(nn.Module):
             state = self.state_ln(state)
 
             if args.decision_mode == 'recbert':
-                logit = logits
+                preds = logits
             elif args.decision_mode == 'hamt':
                 # combine text and visual to predict next action
-                logit = self.next_action_pre(visual_output * lang_output[:, 0:1, :]).squeeze(-1)
+                preds = self.next_action_pre(visual_output * lang_output[:, 0:1, :]).squeeze(-1)
             else:
                 raise ValueError('unknown decision_mode.')
 
-            return state, logit
+            return state, preds
 
         else:
             ModuleNotFoundError

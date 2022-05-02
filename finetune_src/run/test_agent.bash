@@ -7,7 +7,7 @@ flag="--gpu_id ${1}
       --decision_mode recbert
 
       --train validlistener
-      --resume snap/5-lxmert_4x_5p_places_stop_candidate_eagar_wdecay_cls4nap_recbert4dec_1.75e/state_dict/best_val_unseen
+      --resume snap/6-lxmert_4x_3p_places_stop_pano_eagar_wdecay_2e_cls4nap_recbert4dec_4e/state_dict/best_val_unseen
 
       --pretrain_path snap/vln_pretrain_3p_long
 
@@ -18,4 +18,4 @@ flag="--gpu_id ${1}
       --lr 1e-5
       --optim adamW"
 
-python r2r_src/train.py $flag --name $name
+python r2r_src_simv1/train.py $flag --name $name

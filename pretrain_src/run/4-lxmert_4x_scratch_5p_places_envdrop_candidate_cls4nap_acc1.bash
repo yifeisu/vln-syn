@@ -6,7 +6,7 @@ args="--gpu_id ${1}
       --name ${name}
 
       --epoch 10
-      --batchSize 64
+      --batchSize 128
       --num_workers 1
 
       --grad_norm 5.0

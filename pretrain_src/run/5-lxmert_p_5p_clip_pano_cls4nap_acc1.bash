@@ -14,13 +14,13 @@ args="--gpu_id ${1}
       --gradient_accumulation_steps 1
 
       --nap_mode cls
-      --pano 0
-      --lxmert_pretrain 0
+      --pano 1
+      --lxmert_pretrain 1
       --x_layers 4
       --proxy mlm,nap,itm,tom,nar
 
-      --feature res152_places365
-      --img_feat_dim 2048
+      --feature clip_vit
+      --img_feat_dim 512
       --angle_feat_dim 128"
 
 nohup python -u -m torch.distributed.launch --nproc_per_node=4 main_r2r_ddp_acc.py $args > ${name}.log 2>&1 &

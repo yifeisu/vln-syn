@@ -225,8 +225,8 @@ if __name__ == '__main__':
     optimizer = build_optimizer(model, args)
 
     loss_weight = {'mlm': 1.0,
-                   'nap': 1.1,
-                   'nar': 1.2,
+                   'nap': 1.0,
+                   'nar': 1.0,
                    'tom': 1.0,
                    'itm': 1.0}
     sample_rate = {'mlm': 5,
@@ -448,7 +448,7 @@ if __name__ == '__main__':
                 optimizer.zero_grad()
 
             # 4. print the training progress
-            if index < 15:
+            if args.local_rank == 0 and index:
                 loss_str = ''
                 if 'mlm' == task:
                     loss_str += 'mlm loss %.4f,' % mlm_loss.item()
@@ -522,8 +522,8 @@ if __name__ == '__main__':
                         model.module.save_pretrained(save_path)
                         model.module.bert.save_pretrained(save_path + '/bert')
                         LOGGER.info(f"Best model saved.")
-
-        LOGGER.info(f"Finish the {epoch} train epoch!")
+        if args.local_rank == 0:
+            LOGGER.info(f"Finish the {epoch} train epoch!")
 
         # ------------------------------------------- #
         # validating process

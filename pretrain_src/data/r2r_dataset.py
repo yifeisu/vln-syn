@@ -45,8 +45,8 @@ def read_img_features(feature_path, views):
     return features
 
 
-def angle_feature(heading, elevation, angle_feat_size=128):
-    return np.array([np.sin(heading), np.cos(heading), np.sin(elevation), np.cos(elevation)] * (128 // 4),
+def angle_feature(heading, elevation, angle_feat_size=64):
+    return np.array([np.sin(heading), np.cos(heading), np.sin(elevation), np.cos(elevation)] * (angle_feat_size // 4),
                     dtype=np.float32)
 
 
@@ -153,11 +153,11 @@ class MlmDataset(Dataset):
         for viewpoint in item["path"]:
             _long_id = '%s_%s' % (viewpoint[0], viewpoint[1])
             image_feat = self.image_feat[_long_id][viewpoint[2]]
-            angle_feat = angle_feature(0, 0)
+            angle_feat = angle_feature(0, 0, args.angle_feat_dim)
             traj_views.append(np.concatenate([image_feat, angle_feat], axis=0))
 
         # 3.pad the stop 'views'
-        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
+        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0, args.angle_feat_dim)], axis=0)
         traj_views.append(pad_stop_cand)
 
         traj_views = torch.from_numpy(np.vstack(traj_views))  # traj_len, feature_dim
@@ -235,7 +235,7 @@ class NapDataset(Dataset):
             candidate_views = np.concatenate([candidate_views, candidate_angle_feats], axis=1)
 
             # 3.pad the stop 'views'
-            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0)], axis=0)
+            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0, args.angle_feat_dim)], axis=0)
             candidate_views = np.vstack([candidate_views, pad_stop_cand])
 
             candidate_views = torch.from_numpy(candidate_views)
@@ -244,11 +244,11 @@ class NapDataset(Dataset):
             _long_id = item['long_id']
             for index, candidate in enumerate(item["cand_view_idex"]):
                 image_feat = self.image_feat[_long_id][candidate]
-                angle_feat = angle_feature(*item["cand_rela_angle"][index])
+                angle_feat = angle_feature(*item["cand_rela_angle"][index], args.angle_feat_dim)
                 candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
 
             # 3.pad the stop 'views'
-            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0)], axis=0)
+            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0, args.angle_feat_dim)], axis=0)
             candidate_views.append(pad_stop_cand)
 
             candidate_views = torch.from_numpy(np.vstack(candidate_views))
@@ -338,7 +338,7 @@ class NarDataset(Dataset):
             candidate_views = np.concatenate([candidate_views, candidate_angle_feats], axis=1)
 
             # 3.pad the stop 'views'
-            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0)], axis=0)
+            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0, args.angle_feat_dim)], axis=0)
             candidate_views = np.vstack([candidate_views, pad_stop_cand])
 
             candidate_views = torch.from_numpy(candidate_views)
@@ -347,11 +347,11 @@ class NarDataset(Dataset):
             _long_id = item['long_id']
             for index, candidate in enumerate(item["cand_view_idex"]):
                 image_feat = self.image_feat[_long_id][candidate]
-                angle_feat = angle_feature(*item["cand_rela_angle"][index])
+                angle_feat = angle_feature(*item["cand_rela_angle"][index], args.angle_feat_dim)
                 candidate_views.append(np.concatenate([image_feat, angle_feat], axis=0))
 
             # 3.pad the stop 'views'
-            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0)], axis=0)
+            pad_stop_cand = np.concatenate([np.zeros(args.img_feat_dim, dtype=np.float32), angle_feature(0, 0, args.angle_feat_dim)], axis=0)
             candidate_views.append(pad_stop_cand)
 
             candidate_views = torch.from_numpy(np.vstack(candidate_views))
@@ -409,7 +409,7 @@ class TomDataset(Dataset):
         for viewpoint in item["path"]:
             _long_id = '%s_%s' % (viewpoint[0], viewpoint[1])
             image_feat = self.image_feat[_long_id][viewpoint[2]]
-            angle_feat = angle_feature(0, 0)
+            angle_feat = angle_feature(0, 0, args.angle_feat_dim)
             traj_views.append(np.concatenate([image_feat, angle_feat], axis=0))
         traj_views = np.vstack(traj_views)  # traj_len x feature_dim
 
@@ -502,11 +502,11 @@ class ItmDataset(Dataset):
         for viewpoint in traj_raw:
             _long_id = '%s_%s' % (viewpoint[0], viewpoint[1])
             image_feat = self.image_feat[_long_id][viewpoint[2]]
-            angle_feat = angle_feature(0, 0)
+            angle_feat = angle_feature(0, 0, args.angle_feat_dim)
             traj_views.append(np.concatenate([image_feat, angle_feat], axis=0))
 
         # 3.pad the stop 'views'
-        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0)], axis=0)
+        pad_stop_cand = np.concatenate([np.zeros_like(image_feat, dtype=np.float32), angle_feature(0, 0, args.angle_feat_dim)], axis=0)
         traj_views.append(pad_stop_cand)
 
         traj_views = torch.from_numpy(np.vstack(traj_views))  # traj_len, feature_dim

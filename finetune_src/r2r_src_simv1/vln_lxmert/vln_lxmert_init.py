@@ -30,7 +30,7 @@ def get_vlnlxmert_models(args, config=None):
             visual_model = model_class.from_pretrained(args.pretrain_path, config=config)
         elif args.pretrain_lxmert:
             print('Using the pretrain lxmert model.\n')
-            visual_model = model_class.from_pretrained('unc-nlp/lxmert-base-uncased')
+            visual_model = model_class.from_pretrained('unc-nlp/lxmert-base-uncased', config=config)
         else:
             print('Random weight.\n')
             visual_model = model_class(config=config)

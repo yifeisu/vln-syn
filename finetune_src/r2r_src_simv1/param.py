@@ -70,6 +70,14 @@ class Param:
                                  default=None,
                                  help='path of the trained model')
 
+        self.parser.add_argument("--pretrain_r2r",
+                                 type=int,
+                                 default=1)
+
+        self.parser.add_argument("--pretrain_lxmert",
+                                 type=int,
+                                 default=0)
+
         self.parser.add_argument("--pretrain_path",
                                  type=str,
                                  default=None)

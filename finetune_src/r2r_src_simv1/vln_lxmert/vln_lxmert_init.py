@@ -22,8 +22,17 @@ def get_vlnlxmert_models(args, config=None):
     assert args.pretrain_path, 'you have to provide the pretrained models'
 
     if args.train == 'validlistener':
+        # random initialize the weights
         visual_model = model_class(config=config)
     else:
-        visual_model = model_class.from_pretrained(args.pretrain_path, config=config)
+        if args.pretrain_r2r:
+            print('Using our pretrain model.\n')
+            visual_model = model_class.from_pretrained(args.pretrain_path, config=config)
+        elif args.pretrain_lxmert:
+            print('Using the pretrain lxmert model.\n')
+            visual_model = model_class.from_pretrained('unc-nlp/lxmert-base-uncased')
+        else:
+            print('Random weight.\n')
+            visual_model = model_class(config=config)
 
     return visual_model

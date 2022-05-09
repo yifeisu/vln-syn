@@ -333,7 +333,6 @@ class LXRTXLayer(nn.Module):
                 lang_attention_mask,
                 visn_feats,
                 visn_attention_mask):
-
         lang_att_output = lang_feats
         visn_att_output = visn_feats
 
@@ -395,6 +394,7 @@ class LxmertEncoder(nn.Module):
         logger.info(f"Language bert parameters requires grads: {config.l_layers_grads}\n")
         for para in self.layer.parameters():
             para.requires_grad_(config.l_layers_grads)
+            para.requires_grad = config.l_layers_grads
         self.x_layers = nn.ModuleList([LXRTXLayer(config) for _ in range(self.num_x_layers)])
         self.r_layers = nn.ModuleList([BertLayer(config) for _ in range(self.num_r_layers)])
 
@@ -402,7 +402,7 @@ class LxmertEncoder(nn.Module):
                 lang_feats=None,
                 lang_attention_mask=None,
                 visual_feats=None,
-                visual_attention_mask=None,):
+                visual_attention_mask=None, ):
 
         visual_feats = self.visn_fc(visual_feats)
 

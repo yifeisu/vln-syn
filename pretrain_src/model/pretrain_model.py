@@ -124,7 +124,6 @@ class VlnModelPreTraining(BertPreTrainedModel):
             elif args.nap_mode == 'cls':
                 self.next_action_pre = NextCandidatePredictionCls(self.config.hidden_size, self.config.pred_head_dropout_prob)
                 logger.info("Using cls feature to predict the next candidate.")
-
         if 'nar' in args.proxy:
             self.next_action_reg = NextCandidateRegression(self.config.hidden_size, self.config.pred_head_dropout_prob)
         if 'tom' in args.proxy:
@@ -138,6 +137,9 @@ class VlnModelPreTraining(BertPreTrainedModel):
         # initial the weights excpet for the lxmert vlnmodel
         self.apply(self._init_weights)
         logger.info("Finish initializing the vlnpretrian head randomly!")
+
+        # wether to tune the language backbone.
+        config.l_layers_grads = bool(args.l_layers_grads)
 
         if args.lxmert_pretrain:
             # use the pretrained lxmert weights to initial the vlnmodel

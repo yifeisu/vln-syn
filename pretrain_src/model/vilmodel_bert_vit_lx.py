@@ -392,6 +392,9 @@ class LxmertEncoder(nn.Module):
 
         # Using self.layer instead of self.l_layer to support loading BERT weights.
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(self.num_l_layers)])
+        logger.info(f"Language bert parameters requires grads: {config.l_layers_grads}\n")
+        for para in self.layer.parameters():
+            para.requires_grad_(config.l_layers_grads)
         self.x_layers = nn.ModuleList([LXRTXLayer(config) for _ in range(self.num_x_layers)])
         self.r_layers = nn.ModuleList([BertLayer(config) for _ in range(self.num_r_layers)])
 

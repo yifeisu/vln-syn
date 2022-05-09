@@ -61,6 +61,10 @@ class Param:
                                  type=int,
                                  default=1)
 
+        self.parser.add_argument('--l_layers_grads',
+                                 type=int,
+                                 default=1)
+
         self.parser.add_argument('--nap_mode',
                                  type=str,
                                  default='candview',

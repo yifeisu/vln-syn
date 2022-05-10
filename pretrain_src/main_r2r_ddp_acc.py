@@ -280,6 +280,15 @@ if __name__ == '__main__':
         index = 0
         model.train()
 
+        # ------------------------------------------- #
+        # finetune the language bert model, while epoch >= 1
+        # ------------------------------------------- #
+        if epoch >= 1:
+            LOGGER.info("Begin to finetune the language bert model, epoch %d" % epoch)
+            for para in model.module.encoder.bert.layer.parameters():
+                para.requires_grad_(True)
+                para.requires_grad = True
+
         while True:
             # -------------------------------------------------------------------------------------- #
             # set wandb project

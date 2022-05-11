@@ -308,13 +308,15 @@ class Seq2SeqAgent(BaseAgent):
 
         # begin the rollout and navigation
         for t in range(self.episode_len):
-
             input_a_t, candidate_feat, candidate_leng = self.get_input_feat(perm_obs)
 
             # the first [CLS] token, initialized by the language BERT, serves
             # as the agent's state passing through time steps
             if t >= 1:
-                language_features = torch.cat((h_t.unsqueeze(1), language_features[:, 1:, :]), dim=1)
+                if args.update_state:
+                    language_features = torch.cat((h_t.unsqueeze(1), language_features[:, 1:, :]), dim=1)
+                else:
+                    pass
 
             visual_temp_mask = (utils.length2mask(candidate_leng) == 0).long()
             visual_attention_mask = torch.cat((language_attention_mask, visual_temp_mask), dim=-1)

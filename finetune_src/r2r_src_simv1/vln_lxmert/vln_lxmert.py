@@ -82,7 +82,6 @@ class VLNLXMERT(nn.Module):
             # do projection
             state_action = self.state_action_project(state_action)
             state_action = self.state_action_ln(state_action)
-
             # finish updating
             if args.update_state:
                 state_lang = torch.cat([state_action.unsqueeze(1), lang_feats[:, 1:, :]], dim=1)

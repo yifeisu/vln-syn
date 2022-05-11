@@ -24,6 +24,10 @@ class Param:
                                  default=0)
                                  
         # Model architecture
+        self.parser.add_argument("--update_state",
+                                 type=int,
+                                 default=1)
+
         self.parser.add_argument("--x_layers",
                                  type=int,
                                  default=5)

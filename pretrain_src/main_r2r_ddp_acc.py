@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     model = VlnModelPreTraining(config=config).cuda()
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True)
-
+    print(len(list(model.module.bert.encoder.layer.parameters())))
     if args.resume:
         model.module.from_pretrained(args.resume)
         LOGGER.info(f"Resume the trained model from {args.resume}")
@@ -285,7 +285,7 @@ if __name__ == '__main__':
         # ------------------------------------------- #
         if epoch >= 1:
             LOGGER.info("Begin to finetune the language bert model, epoch %d" % epoch)
-            for para in model.module.encoder.bert.layer.parameters():
+            for para in model.module.bert.encoder.layer.parameters():
                 para.requires_grad_(True)
                 para.requires_grad = True
 
